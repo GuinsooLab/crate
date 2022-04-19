@@ -21,15 +21,24 @@
 
 package io.crate.planner.node.management;
 
+import java.util.List;
+import java.util.UUID;
+import java.util.function.BiConsumer;
+
+import javax.annotation.Nullable;
+
+import org.elasticsearch.action.ActionListener;
+
 import io.crate.analyze.SymbolEvaluator;
 import io.crate.common.annotations.VisibleForTesting;
 import io.crate.data.Row;
 import io.crate.data.Row1;
 import io.crate.data.RowConsumer;
+import io.crate.execution.jobs.kill.KillAllNodeAction;
 import io.crate.execution.jobs.kill.KillAllRequest;
+import io.crate.execution.jobs.kill.KillJobsNodeAction;
 import io.crate.execution.jobs.kill.KillJobsRequest;
-import io.crate.execution.jobs.kill.TransportKillAllNodeAction;
-import io.crate.execution.jobs.kill.TransportKillJobsNodeAction;
+import io.crate.execution.jobs.kill.KillResponse;
 import io.crate.execution.support.OneRowActionListener;
 import io.crate.expression.symbol.Symbol;
 import io.crate.metadata.CoordinatorTxnCtx;
@@ -39,10 +48,6 @@ import io.crate.planner.Plan;
 import io.crate.planner.PlannerContext;
 import io.crate.planner.operators.SubQueryResults;
 import io.crate.types.DataTypes;
-
-import javax.annotation.Nullable;
-import java.util.List;
-import java.util.UUID;
 
 public class KillPlan implements Plan {
 
@@ -72,8 +77,12 @@ public class KillPlan implements Plan {
                 params,
                 subQueryResults),
             plannerContext.transactionContext().sessionSettings().userName(),
-            dependencies.transportActionProvider().transportKillAllNodeAction(),
-            dependencies.transportActionProvider().transportKillJobsNodeAction(),
+            (req, listener) -> dependencies.client()
+                .execute(KillJobsNodeAction.INSTANCE, req)
+                .whenComplete(ActionListener.toBiConsumer(listener)),
+            (req, listener) -> dependencies.client()
+                .execute(KillAllNodeAction.INSTANCE, req)
+                .whenComplete(ActionListener.toBiConsumer(listener)),
             consumer
         );
     }
@@ -106,17 +115,20 @@ public class KillPlan implements Plan {
     @VisibleForTesting
     void execute(@Nullable UUID jobId,
                  String userName,
-                 TransportKillAllNodeAction killAllNodeAction,
-                 TransportKillJobsNodeAction killJobsNodeAction,
+                 BiConsumer<KillJobsRequest, ActionListener<KillResponse>> killJobsNodeAction,
+                 BiConsumer<KillAllRequest, ActionListener<KillResponse>> killAllNodeAction,
                  RowConsumer consumer) {
         if (jobId != null) {
-            killJobsNodeAction.broadcast(
-                new KillJobsRequest(List.of(jobId), userName, "KILL invoked by user: " + userName),
-                new OneRowActionListener<>(consumer, Row1::new));
+            killJobsNodeAction.accept(new KillJobsRequest(List.of(),
+                                                          List.of(jobId),
+                                                          userName,
+                                                          "KILL invoked by user: " + userName),
+                                      new OneRowActionListener<>(consumer,
+                                                                 killResponse -> new Row1(killResponse.numKilled())));
         } else {
-            killAllNodeAction.broadcast(
-                new KillAllRequest(userName),
-                new OneRowActionListener<>(consumer, Row1::new));
+            killAllNodeAction.accept(new KillAllRequest(userName),
+                                     new OneRowActionListener<>(consumer,
+                                                                killResponse -> new Row1(killResponse.numKilled())));
         }
     }
 }

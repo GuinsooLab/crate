@@ -29,6 +29,7 @@ import org.elasticsearch.test.transport.MockTransportService;
 import org.junit.Test;
 import org.mockito.Answers;
 
+import java.util.List;
 import java.util.concurrent.TimeUnit;
 
 import static org.mockito.Mockito.mock;

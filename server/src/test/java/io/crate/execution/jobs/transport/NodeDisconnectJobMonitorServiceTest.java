@@ -26,10 +26,10 @@ import static org.hamcrest.Matchers.is;
 import static org.mockito.Mockito.mock;
 
 import java.util.Arrays;
-import java.util.Collection;
 import java.util.Collections;
 import java.util.UUID;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.function.BiConsumer;
 
 import org.elasticsearch.Version;
 import org.elasticsearch.action.ActionListener;
@@ -47,6 +47,7 @@ import io.crate.execution.jobs.NodeLimits;
 import io.crate.execution.jobs.RootTask;
 import io.crate.execution.jobs.TasksService;
 import io.crate.execution.jobs.kill.KillJobsRequest;
+import io.crate.execution.jobs.kill.KillResponse;
 import io.crate.execution.jobs.kill.TransportKillJobsNodeAction;
 import io.crate.test.integration.CrateDummyClusterServiceUnitTest;
 
@@ -67,7 +68,7 @@ public class NodeDisconnectJobMonitorServiceTest extends CrateDummyClusterServic
             tasksService,
             new NodeLimits(new ClusterSettings(Settings.EMPTY, ClusterSettings.BUILT_IN_CLUSTER_SETTINGS)),
             mock(TransportService.class),
-            mock(TransportKillJobsNodeAction.class));
+            mock(BiConsumer.class));
 
         monitorService.onNodeDisconnected(
             new DiscoveryNode(NODE_ID, buildNewFakeTransportAddress(), Version.CURRENT),
@@ -103,7 +104,7 @@ public class NodeDisconnectJobMonitorServiceTest extends CrateDummyClusterServic
             mock(TransportService.class)
         ) {
             @Override
-            public void broadcast(KillJobsRequest request, ActionListener<Long> listener, Collection<String> excludedNodeIds) {
+            public void doExecute(KillJobsRequest request, ActionListener<KillResponse> listener) {
                 broadcasts.incrementAndGet();
             }
         };
@@ -111,7 +112,7 @@ public class NodeDisconnectJobMonitorServiceTest extends CrateDummyClusterServic
             tasksService,
             new NodeLimits(new ClusterSettings(Settings.EMPTY, ClusterSettings.BUILT_IN_CLUSTER_SETTINGS)),
             mock(TransportService.class),
-            killAction);
+            killAction::doExecute);
 
         monitorService.onNodeDisconnected(dataNode, mock(Transport.Connection.class));
 

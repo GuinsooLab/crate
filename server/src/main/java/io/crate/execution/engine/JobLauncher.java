@@ -42,11 +42,14 @@ import io.crate.execution.jobs.RootTask;
 import io.crate.execution.jobs.SharedShardContexts;
 import io.crate.execution.jobs.Task;
 import io.crate.execution.jobs.TasksService;
-import io.crate.execution.jobs.kill.TransportKillJobsNodeAction;
+import io.crate.execution.jobs.kill.KillJobsRequest;
+import io.crate.execution.jobs.kill.KillResponse;
 import io.crate.execution.jobs.transport.JobRequest;
 import io.crate.execution.jobs.transport.TransportJobAction;
 import io.crate.metadata.TransactionContext;
 import io.crate.profile.ProfilingContext;
+
+import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.cluster.service.ClusterService;
 import io.crate.common.collections.Tuple;
 import org.elasticsearch.indices.IndicesService;
@@ -61,6 +64,7 @@ import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
+import java.util.function.BiConsumer;
 import java.util.function.UnaryOperator;
 import java.util.stream.Collectors;
 
@@ -103,7 +107,7 @@ import java.util.stream.Collectors;
 public class JobLauncher {
 
     private final TransportJobAction transportJobAction;
-    private final TransportKillJobsNodeAction transportKillJobsNodeAction;
+    private final BiConsumer<KillJobsRequest, ActionListener<KillResponse>> killNodeAction;
     private final List<NodeOperationTree> nodeOperationTrees;
     private final UUID jobId;
     private final ClusterService clusterService;
@@ -121,7 +125,7 @@ public class JobLauncher {
                 TasksService tasksService,
                 IndicesService indicesService,
                 TransportJobAction transportJobAction,
-                TransportKillJobsNodeAction transportKillJobsNodeAction,
+                BiConsumer<KillJobsRequest, ActionListener<KillResponse>> killNodeAction,
                 List<NodeOperationTree> nodeOperationTrees,
                 boolean enableProfiling,
                 Executor executor) {
@@ -131,7 +135,7 @@ public class JobLauncher {
         this.tasksService = tasksService;
         this.indicesService = indicesService;
         this.transportJobAction = transportJobAction;
-        this.transportKillJobsNodeAction = transportKillJobsNodeAction;
+        this.killNodeAction = killNodeAction;
         this.nodeOperationTrees = nodeOperationTrees;
         this.enableProfiling = enableProfiling;
         this.executor = executor;
@@ -313,7 +317,7 @@ public class JobLauncher {
                 consumerIt.next(),
                 initializationTracker,
                 executor,
-                transportKillJobsNodeAction
+                killNodeAction
             );
             handlerPhaseAndReceiver.add(new Tuple<>(handlerPhase, interceptingBatchConsumer));
         }

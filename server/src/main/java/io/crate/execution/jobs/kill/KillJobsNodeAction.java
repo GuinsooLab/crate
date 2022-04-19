@@ -6,7 +6,7 @@
  * you may not use this file except in compliance with the License.  You may
  * obtain a copy of the License at
  *
- *   http://www.apache.org/licenses/LICENSE-2.0
+ *     http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
@@ -21,33 +21,14 @@
 
 package io.crate.execution.jobs.kill;
 
+import org.elasticsearch.action.ActionType;
 
-import org.elasticsearch.test.ESTestCase;
-import org.elasticsearch.common.io.stream.BytesStreamOutput;
-import org.elasticsearch.common.io.stream.StreamInput;
-import org.junit.Test;
+public class KillJobsNodeAction extends ActionType<KillResponse> {
 
-import java.util.List;
-import java.util.UUID;
+    public static final String NAME = "internal:crate:sql/kill/jobs";
+    public static final KillJobsNodeAction INSTANCE = new KillJobsNodeAction();
 
-import static org.hamcrest.Matchers.equalTo;
-import static org.hamcrest.Matchers.is;
-
-public class KillJobsRequestTest extends ESTestCase {
-
-    @Test
-    public void testStreaming() throws Exception {
-        List<UUID> toKill = List.of(UUID.randomUUID(), UUID.randomUUID());
-        KillJobsRequest r = new KillJobsRequest(List.of(), toKill, "dummy-user", "just because");
-
-        BytesStreamOutput out = new BytesStreamOutput();
-        r.writeTo(out);
-
-        StreamInput in = out.bytes().streamInput();
-        KillJobsRequest r2 = new KillJobsRequest(in);
-
-        assertThat(r.toKill(), equalTo(r2.toKill()));
-        assertThat(r.reason(), is(r2.reason()));
-        assertThat(r.userName(), is(r2.userName()));
+    private KillJobsNodeAction() {
+        super(NAME);
     }
 }

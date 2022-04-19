@@ -25,8 +25,10 @@ import io.crate.execution.jobs.TasksService;
 import io.crate.execution.support.MultiActionListener;
 import io.crate.execution.support.NodeAction;
 import io.crate.execution.support.NodeActionRequestHandler;
+
 import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.action.ActionListenerResponseHandler;
+import org.elasticsearch.action.support.TransportAction;
 import org.elasticsearch.cluster.node.DiscoveryNode;
 import org.elasticsearch.cluster.service.ClusterService;
 import org.elasticsearch.common.io.stream.StreamInput;
@@ -38,13 +40,15 @@ import org.elasticsearch.transport.TransportService;
 
 import java.io.IOException;
 import java.util.Collection;
-import java.util.Collections;
 import java.util.concurrent.CompletableFuture;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
 
-abstract class TransportKillNodeAction<Request extends TransportRequest> implements NodeAction<Request, KillResponse>, Writeable.Reader<Request> {
+abstract class TransportKillNodeAction<Request extends TransportRequest>
+    extends TransportAction<Request, KillResponse>
+    // TODO: make NodeAction extend TransportAction
+    implements NodeAction<Request, KillResponse>, Writeable.Reader<Request> {
 
     protected final TasksService tasksService;
     protected final ClusterService clusterService;
@@ -57,6 +61,7 @@ abstract class TransportKillNodeAction<Request extends TransportRequest> impleme
                             ClusterService clusterService,
                             TransportService transportService,
                             Writeable.Reader<Request> reader) {
+        super(name);
         this.tasksService = tasksService;
         this.clusterService = clusterService;
         this.transportService = transportService;
@@ -81,34 +86,16 @@ abstract class TransportKillNodeAction<Request extends TransportRequest> impleme
         return reader.read(in);
     }
 
-    /**
-     * Broadcasts the given kill request to all nodes in the cluster
-     */
-    public void broadcast(Request request, ActionListener<Long> listener) {
-        broadcast(request, listener, Collections.emptyList());
-    }
-
-    /**
-     * Broadcasts the kill request but ignore responses
-     */
-    public void broadcast(Request request) {
-        broadcast(request, new ActionListener<Long>() {
-            @Override
-            public void onResponse(Long aLong) {
-            }
-
-            @Override
-            public void onFailure(Exception e) {
-            }
-        });
-    }
-
-    public void broadcast(Request request, ActionListener<Long> listener, Collection<String> excludedNodeIds) {
+    protected void broadcast(Request request, ActionListener<KillResponse> listener, Collection<String> excludedNodeIds) {
         Stream<DiscoveryNode> nodes = StreamSupport.stream(clusterService.state().nodes().spliterator(), false);
         Collection<DiscoveryNode> filteredNodes = nodes.filter(node -> !excludedNodeIds.contains(node.getId())).collect(Collectors.toList());
 
-        MultiActionListener<KillResponse, ?, Long> multiListener =
-            new MultiActionListener<>(filteredNodes.size(), Collectors.summingLong(KillResponse::numKilled), listener);
+        MultiActionListener<KillResponse, Long, KillResponse> multiListener =
+            new MultiActionListener<>(filteredNodes.size(),
+                                      () -> 0L,
+                                      (state, response) -> state += response.numKilled(),
+                                      KillResponse::new,
+                                      listener);
 
         TransportResponseHandler<KillResponse> responseHandler =
             new ActionListenerResponseHandler<>(multiListener, KillResponse::new);

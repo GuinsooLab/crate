@@ -6,7 +6,7 @@
  * you may not use this file except in compliance with the License.  You may
  * obtain a copy of the License at
  *
- *   http://www.apache.org/licenses/LICENSE-2.0
+ *     http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
@@ -19,35 +19,34 @@
  * software solely pursuant to the terms of the relevant commercial agreement.
  */
 
-package io.crate.execution.jobs.kill;
+package io.crate.execution.support;
 
+import java.io.IOException;
 
-import org.elasticsearch.test.ESTestCase;
-import org.elasticsearch.common.io.stream.BytesStreamOutput;
 import org.elasticsearch.common.io.stream.StreamInput;
-import org.junit.Test;
+import org.elasticsearch.common.io.stream.StreamOutput;
+import org.elasticsearch.transport.TransportRequest;
 
-import java.util.List;
-import java.util.UUID;
+public class NodeRequest extends TransportRequest {
 
-import static org.hamcrest.Matchers.equalTo;
-import static org.hamcrest.Matchers.is;
+    private final String nodeId;
 
-public class KillJobsRequestTest extends ESTestCase {
+    public NodeRequest(String nodeId) {
+        this.nodeId = nodeId;
+    }
 
-    @Test
-    public void testStreaming() throws Exception {
-        List<UUID> toKill = List.of(UUID.randomUUID(), UUID.randomUUID());
-        KillJobsRequest r = new KillJobsRequest(List.of(), toKill, "dummy-user", "just because");
+    public NodeRequest(StreamInput in) throws IOException {
+        super(in);
+        this.nodeId = in.readOptionalString();
+    }
 
-        BytesStreamOutput out = new BytesStreamOutput();
-        r.writeTo(out);
+    @Override
+    public void writeTo(StreamOutput out) throws IOException {
+        super.writeTo(out);
+        out.writeOptionalString(nodeId);
+    }
 
-        StreamInput in = out.bytes().streamInput();
-        KillJobsRequest r2 = new KillJobsRequest(in);
-
-        assertThat(r.toKill(), equalTo(r2.toKill()));
-        assertThat(r.reason(), is(r2.reason()));
-        assertThat(r.userName(), is(r2.userName()));
+    public String getNodeId() {
+        return nodeId;
     }
 }

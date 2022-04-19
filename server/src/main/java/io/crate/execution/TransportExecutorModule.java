@@ -38,8 +38,6 @@ import io.crate.execution.engine.distribution.TransportDistributedResultAction;
 import io.crate.execution.engine.fetch.TransportFetchNodeAction;
 import io.crate.execution.engine.profile.TransportCollectProfileNodeAction;
 import io.crate.execution.jobs.JobSetup;
-import io.crate.execution.jobs.kill.TransportKillAllNodeAction;
-import io.crate.execution.jobs.kill.TransportKillJobsNodeAction;
 import io.crate.execution.jobs.transport.TransportJobAction;
 import io.crate.expression.udf.TransportCreateUserDefinedFunctionAction;
 import io.crate.expression.udf.TransportDropUserDefinedFunctionAction;
@@ -65,8 +63,6 @@ public class TransportExecutorModule extends AbstractModule {
         bind(TransportFetchNodeAction.class).asEagerSingleton();
         bind(TransportDecommissionNodeAction.class).asEagerSingleton();
         bind(TransportCollectProfileNodeAction.class).asEagerSingleton();
-        bind(TransportKillAllNodeAction.class).asEagerSingleton();
-        bind(TransportKillJobsNodeAction.class).asEagerSingleton();
         bind(TransportNodeStatsAction.class).asEagerSingleton();
         bind(TransportCreateTableAction.class).asEagerSingleton();
         bind(TransportRenameTableAction.class).asEagerSingleton();

@@ -26,7 +26,6 @@ import io.crate.execution.jobs.TasksService;
 import io.crate.execution.jobs.kill.KillAllRequest;
 import io.crate.execution.jobs.kill.KillResponse;
 import io.crate.execution.jobs.kill.TransportKillAllNodeAction;
-import io.crate.execution.jobs.kill.TransportKillJobsNodeAction;
 import io.crate.test.integration.CrateDummyClusterServiceUnitTest;
 import io.crate.testing.TestingRowConsumer;
 import org.elasticsearch.action.ActionListener;
@@ -35,6 +34,7 @@ import org.junit.Test;
 
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.function.BiConsumer;
 
 import static org.hamcrest.Matchers.is;
 import static org.mockito.Mockito.mock;
@@ -51,7 +51,7 @@ public class KillPlanTest extends CrateDummyClusterServiceUnitTest {
             mock(TransportService.class)
         ) {
             @Override
-            public void broadcast(KillAllRequest request, ActionListener<Long> listener) {
+            public void doExecute(KillAllRequest request, ActionListener<KillResponse> listener) {
                 broadcastCalls.incrementAndGet();
             }
 
@@ -65,8 +65,8 @@ public class KillPlanTest extends CrateDummyClusterServiceUnitTest {
         killPlan.execute(
             null,
             "dummy-user",
-            killAllNodeAction,
-            mock(TransportKillJobsNodeAction.class),
+            mock(BiConsumer.class),
+            killAllNodeAction::doExecute,
             new TestingRowConsumer());
         assertThat(broadcastCalls.get(), is(1));
         assertThat(nodeOperationCalls.get(), is(0));

@@ -24,17 +24,23 @@ package io.crate.execution.engine;
 import io.crate.execution.dsl.phases.NodeOperationTree;
 import io.crate.execution.jobs.JobSetup;
 import io.crate.execution.jobs.TasksService;
-import io.crate.execution.jobs.kill.TransportKillJobsNodeAction;
+import io.crate.execution.jobs.kill.KillJobsNodeAction;
+import io.crate.execution.jobs.kill.KillJobsRequest;
+import io.crate.execution.jobs.kill.KillResponse;
 import io.crate.execution.jobs.transport.TransportJobAction;
+
+import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.cluster.service.ClusterService;
 import org.elasticsearch.common.inject.Inject;
 import org.elasticsearch.common.inject.Singleton;
 import org.elasticsearch.indices.IndicesService;
+import org.elasticsearch.node.Node;
 import org.elasticsearch.threadpool.ThreadPool;
 
 import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.Executor;
+import java.util.function.BiConsumer;
 
 @Singleton
 public final class PhasesTaskFactory {
@@ -44,7 +50,7 @@ public final class PhasesTaskFactory {
     private final TasksService tasksService;
     private final IndicesService indicesService;
     private final TransportJobAction jobAction;
-    private final TransportKillJobsNodeAction killJobsNodeAction;
+    private final BiConsumer<KillJobsRequest, ActionListener<KillResponse>> killNodeAction;
     private final Executor searchExecutor;
 
     @Inject
@@ -54,13 +60,15 @@ public final class PhasesTaskFactory {
                              TasksService tasksService,
                              IndicesService indicesService,
                              TransportJobAction jobAction,
-                             TransportKillJobsNodeAction killJobsNodeAction) {
+                             Node node) {
         this.clusterService = clusterService;
         this.jobSetup = jobSetup;
         this.tasksService = tasksService;
         this.indicesService = indicesService;
         this.jobAction = jobAction;
-        this.killJobsNodeAction = killJobsNodeAction;
+        this.killNodeAction = (req, listener) -> node.client()
+            .execute(KillJobsNodeAction.INSTANCE, req)
+            .whenComplete(ActionListener.toBiConsumer(listener));;
         this.searchExecutor = threadPool.executor(ThreadPool.Names.SEARCH);
     }
 
@@ -76,7 +84,7 @@ public final class PhasesTaskFactory {
             tasksService,
             indicesService,
             jobAction,
-            killJobsNodeAction,
+            killNodeAction,
             nodeOperationTreeList,
             enableProfiling,
             searchExecutor

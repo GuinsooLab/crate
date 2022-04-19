@@ -29,6 +29,7 @@ import io.crate.execution.dsl.phases.RoutedCollectPhase;
 import io.crate.execution.engine.collect.stats.JobsLogs;
 import io.crate.execution.jobs.TasksService;
 import io.crate.execution.jobs.kill.KillJobsRequest;
+import io.crate.execution.jobs.kill.KillResponse;
 import io.crate.execution.jobs.kill.TransportKillJobsNodeAction;
 import io.crate.execution.jobs.transport.JobRequest;
 import io.crate.execution.jobs.transport.JobResponse;
@@ -100,7 +101,7 @@ public class RemoteCollectorTest extends CrateDummyClusterServiceUnitTest {
             mock(TransportService.class)
         ) {
             @Override
-            public void broadcast(KillJobsRequest request, ActionListener<Long> listener) {
+            public void doExecute(KillJobsRequest request, ActionListener<KillResponse> listener) {
                 numBroadcastCalls.incrementAndGet();
             }
         };
@@ -111,7 +112,7 @@ public class RemoteCollectorTest extends CrateDummyClusterServiceUnitTest {
             "localNode",
             "remoteNode",
             transportJobAction,
-            transportKillJobsNodeAction,
+            transportKillJobsNodeAction::doExecute,
             Runnable::run,
             tasksService,
             RamAccounting.NO_ACCOUNTING,

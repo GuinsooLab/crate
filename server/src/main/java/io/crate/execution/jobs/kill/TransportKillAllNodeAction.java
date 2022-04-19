@@ -22,11 +22,14 @@
 package io.crate.execution.jobs.kill;
 
 import io.crate.execution.jobs.TasksService;
+
+import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.cluster.service.ClusterService;
 import org.elasticsearch.common.inject.Inject;
 import org.elasticsearch.common.inject.Singleton;
 import org.elasticsearch.transport.TransportService;
 
+import java.util.List;
 import java.util.concurrent.CompletableFuture;
 
 @Singleton
@@ -36,11 +39,17 @@ public class TransportKillAllNodeAction extends TransportKillNodeAction<KillAllR
     public TransportKillAllNodeAction(TasksService tasksService,
                                       ClusterService clusterService,
                                       TransportService transportService) {
-        super("internal:crate:sql/kill/all", tasksService, clusterService, transportService, KillAllRequest::new);
+        super(KillAllNodeAction.NAME, tasksService, clusterService, transportService, KillAllRequest::new);
     }
 
     @Override
     protected CompletableFuture<Integer> doKill(KillAllRequest request) {
         return tasksService.killAll(request.userName());
+    }
+
+    @Override
+    public void doExecute(KillAllRequest request,
+                             ActionListener<KillResponse> listener) {
+        broadcast(request, listener, List.of());
     }
 }

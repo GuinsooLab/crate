@@ -24,6 +24,7 @@ package io.crate.execution.jobs.transport;
 import java.util.Collections;
 import java.util.List;
 import java.util.UUID;
+import java.util.function.BiConsumer;
 import java.util.stream.Collectors;
 
 import org.apache.logging.log4j.LogManager;
@@ -33,14 +34,17 @@ import org.elasticsearch.cluster.node.DiscoveryNode;
 import org.elasticsearch.common.component.AbstractLifecycleComponent;
 import org.elasticsearch.common.inject.Inject;
 import org.elasticsearch.common.inject.Singleton;
+import org.elasticsearch.node.Node;
 import org.elasticsearch.transport.Transport;
 import org.elasticsearch.transport.TransportConnectionListener;
 import org.elasticsearch.transport.TransportService;
 
+import io.crate.common.annotations.VisibleForTesting;
 import io.crate.execution.jobs.NodeLimits;
 import io.crate.execution.jobs.TasksService;
+import io.crate.execution.jobs.kill.KillJobsNodeAction;
 import io.crate.execution.jobs.kill.KillJobsRequest;
-import io.crate.execution.jobs.kill.TransportKillJobsNodeAction;
+import io.crate.execution.jobs.kill.KillResponse;
 import io.crate.user.User;
 
 /**
@@ -53,18 +57,30 @@ public class NodeDisconnectJobMonitorService extends AbstractLifecycleComponent 
     private final NodeLimits nodeLimits;
     private final TransportService transportService;
 
-    private final TransportKillJobsNodeAction killJobsNodeAction;
+    private final BiConsumer<KillJobsRequest, ActionListener<KillResponse>> killNodeAction;
     private static final Logger LOGGER = LogManager.getLogger(NodeDisconnectJobMonitorService.class);
 
     @Inject
     public NodeDisconnectJobMonitorService(TasksService tasksService,
                                            NodeLimits nodeLimits,
                                            TransportService transportService,
-                                           TransportKillJobsNodeAction killJobsNodeAction) {
+                                           Node node) {
+        this(tasksService, nodeLimits, transportService,
+             (req, listener) -> node.client()
+                 .execute(KillJobsNodeAction.INSTANCE, req)
+                 .whenComplete(ActionListener.toBiConsumer(listener))
+        );
+    }
+
+    @VisibleForTesting
+    NodeDisconnectJobMonitorService(TasksService tasksService,
+                                    NodeLimits nodeLimits,
+                                    TransportService transportService,
+                                    BiConsumer<KillJobsRequest, ActionListener<KillResponse>> killNodeAction) {
         this.tasksService = tasksService;
         this.nodeLimits = nodeLimits;
         this.transportService = transportService;
-        this.killJobsNodeAction = killJobsNodeAction;
+        this.killNodeAction = killNodeAction;
     }
 
     @Override
@@ -125,20 +141,21 @@ public class NodeDisconnectJobMonitorService extends AbstractLifecycleComponent 
         }
         List<String> excludedNodeIds = Collections.singletonList(deadNode.getId());
         KillJobsRequest killRequest = new KillJobsRequest(
+            excludedNodeIds,
             affectedJobs,
             User.CRATE_USER.name(),
             "Participating node=" + deadNode.getName() + " disconnected."
         );
-        killJobsNodeAction.broadcast(killRequest, new ActionListener<>() {
+        killNodeAction.accept(killRequest, new ActionListener<>() {
             @Override
-            public void onResponse(Long numKilled) {
+            public void onResponse(KillResponse killResponse) {
             }
 
             @Override
             public void onFailure(Exception e) {
                 LOGGER.warn("failed to send kill request to nodes");
             }
-        }, excludedNodeIds);
+        });
     }
 
     /**

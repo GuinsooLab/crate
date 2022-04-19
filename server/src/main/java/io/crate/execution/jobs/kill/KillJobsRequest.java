@@ -32,10 +32,12 @@ import javax.annotation.Nullable;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.List;
 import java.util.UUID;
 
 public class KillJobsRequest extends TransportRequest {
 
+    private final List<String> excludedNodeIds;
     private final Collection<UUID> toKill;
     private final String userName;
 
@@ -46,7 +48,8 @@ public class KillJobsRequest extends TransportRequest {
     /**
      * @param userName user that invoked the kill. If the kill is system generated use User.CRATE_USER.name()
      */
-    public KillJobsRequest(Collection<UUID> jobsToKill, String userName, @Nullable String reason) {
+    public KillJobsRequest(List<String> excludedNodeIds, Collection<UUID> jobsToKill, String userName, @Nullable String reason) {
+        this.excludedNodeIds = excludedNodeIds;
         this.toKill = jobsToKill;
         this.userName = userName;
         this.reason = reason;
@@ -54,6 +57,10 @@ public class KillJobsRequest extends TransportRequest {
 
     public Collection<UUID> toKill() {
         return toKill;
+    }
+
+    public List<String> excludedNodeIds() {
+        return excludedNodeIds;
     }
 
     public KillJobsRequest(StreamInput in) throws IOException {
@@ -76,6 +83,12 @@ public class KillJobsRequest extends TransportRequest {
             // So we know it must have been `crate`
             userName = User.CRATE_USER.name();
         }
+        if (in.getVersion().onOrAfter(Version.V_4_8_0)) {
+            excludedNodeIds = in.readList(StreamInput::readString);
+        } else {
+            // TODO: does it work properly?
+            excludedNodeIds = List.of();
+        }
     }
 
     @Override
@@ -92,6 +105,9 @@ public class KillJobsRequest extends TransportRequest {
         }
         if (out.getVersion().onOrAfter(Version.V_4_3_0)) {
             out.writeString(userName);
+        }
+        if (out.getVersion().onOrAfter(Version.V_4_8_0)) {
+            out.writeCollection(excludedNodeIds, StreamOutput::writeString);
         }
     }
 

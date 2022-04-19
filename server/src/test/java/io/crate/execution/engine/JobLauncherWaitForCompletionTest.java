@@ -36,7 +36,6 @@ import org.mockito.Mockito;
 import io.crate.data.RowConsumer;
 import io.crate.execution.jobs.JobSetup;
 import io.crate.execution.jobs.TasksService;
-import io.crate.execution.jobs.kill.TransportKillJobsNodeAction;
 import io.crate.execution.jobs.transport.TransportJobAction;
 import io.crate.metadata.TransactionContext;
 import io.crate.planner.PlannerContext;
@@ -60,7 +59,7 @@ public class JobLauncherWaitForCompletionTest extends CrateDummyClusterServiceUn
             Mockito.mock(TasksService.class),
             Mockito.mock(IndicesService.class),
             Mockito.mock(TransportJobAction.class),
-            Mockito.mock(TransportKillJobsNodeAction.class),
+            null,
             List.of(),
             false,
             THREAD_POOL.generic()

@@ -27,6 +27,7 @@ import io.crate.exceptions.TaskMissing;
 import io.crate.execution.engine.collect.stats.JobsLogs;
 import io.crate.execution.jobs.TasksService;
 import io.crate.execution.jobs.kill.KillJobsRequest;
+import io.crate.execution.jobs.kill.KillResponse;
 import io.crate.execution.jobs.kill.TransportKillJobsNodeAction;
 import io.crate.execution.support.Transports;
 import io.crate.test.integration.CrateDummyClusterServiceUnitTest;
@@ -37,7 +38,6 @@ import org.elasticsearch.transport.TransportService;
 import org.hamcrest.Matchers;
 import org.junit.Test;
 
-import java.util.Collection;
 import java.util.UUID;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
@@ -58,7 +58,7 @@ public class TransportDistributedResultActionTest extends CrateDummyClusterServi
             mock(TransportService.class)
         ) {
             @Override
-            public void broadcast(KillJobsRequest request, ActionListener<Long> listener, Collection<String> excludedNodeIds) {
+            public void doExecute(KillJobsRequest request, ActionListener<KillResponse> listener) {
                 numBroadcasts.incrementAndGet();
             }
         };
@@ -68,7 +68,7 @@ public class TransportDistributedResultActionTest extends CrateDummyClusterServi
             THREAD_POOL,
             mock(TransportService.class),
             clusterService,
-            killJobsAction,
+            killJobsAction::doExecute,
             BackoffPolicy.exponentialBackoff(TimeValue.ZERO, 0)
         );
 

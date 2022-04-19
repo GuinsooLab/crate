@@ -22,6 +22,8 @@
 package io.crate.execution.jobs.kill;
 
 import io.crate.execution.jobs.TasksService;
+
+import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.cluster.service.ClusterService;
 import org.elasticsearch.common.inject.Inject;
 import org.elasticsearch.common.inject.Singleton;
@@ -38,7 +40,7 @@ public class TransportKillJobsNodeAction extends TransportKillNodeAction<KillJob
     public TransportKillJobsNodeAction(TasksService tasksService,
                                        ClusterService clusterService,
                                        TransportService transportService) {
-        super("internal:crate:sql/kill/jobs", tasksService, clusterService, transportService, KillJobsRequest::new);
+        super(KillJobsNodeAction.NAME, tasksService, clusterService, transportService, KillJobsRequest::new);
     }
 
     @Override
@@ -49,5 +51,11 @@ public class TransportKillJobsNodeAction extends TransportKillNodeAction<KillJob
     @Override
     public KillJobsRequest read(StreamInput in) throws IOException {
         return new KillJobsRequest(in);
+    }
+
+    @Override
+    public void doExecute(KillJobsRequest request,
+                             ActionListener<KillResponse> listener) {
+        broadcast(request, listener, request.excludedNodeIds());
     }
 }

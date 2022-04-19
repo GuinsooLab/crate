@@ -37,8 +37,12 @@ import io.crate.execution.engine.collect.collectors.RemoteCollector;
 import io.crate.execution.engine.collect.collectors.ShardStateObserver;
 import io.crate.execution.engine.collect.sources.ShardCollectorProviderFactory;
 import io.crate.execution.jobs.TasksService;
+import io.crate.execution.jobs.kill.KillJobsNodeAction;
 import io.crate.metadata.Routing;
 import io.crate.planner.distribution.DistributionInfo;
+
+import org.elasticsearch.action.ActionListener;
+import org.elasticsearch.client.ElasticsearchClient;
 import org.elasticsearch.cluster.routing.ShardRouting;
 import org.elasticsearch.cluster.service.ClusterService;
 import org.elasticsearch.common.UUIDs;
@@ -46,6 +50,7 @@ import org.elasticsearch.common.inject.Inject;
 import org.elasticsearch.common.inject.Singleton;
 import org.elasticsearch.index.shard.ShardId;
 import org.elasticsearch.indices.IndicesService;
+import org.elasticsearch.node.Node;
 import org.elasticsearch.threadpool.ThreadPool;
 
 import java.util.ArrayList;
@@ -70,6 +75,7 @@ public class RemoteCollectorFactory {
     private final ClusterService clusterService;
     private final TasksService tasksService;
     private final TransportActionProvider transportActionProvider;
+    private final ElasticsearchClient elasticsearchClient;
     private final IndicesService indicesService;
     private final Executor searchTp;
 
@@ -77,11 +83,13 @@ public class RemoteCollectorFactory {
     public RemoteCollectorFactory(ClusterService clusterService,
                                   TasksService tasksService,
                                   TransportActionProvider transportActionProvider,
+                                  Node node,
                                   IndicesService indicesService,
                                   ThreadPool threadPool) {
         this.clusterService = clusterService;
         this.tasksService = tasksService;
         this.transportActionProvider = transportActionProvider;
+        this.elasticsearchClient = node.client();
         this.indicesService = indicesService;
         searchTp = threadPool.executor(ThreadPool.Names.SEARCH);
     }
@@ -140,7 +148,9 @@ public class RemoteCollectorFactory {
                 localNodeId,
                 nodeId,
                 transportActionProvider.transportJobInitAction(),
-                transportActionProvider.transportKillJobsNodeAction(),
+                (req, listener) -> elasticsearchClient
+                    .execute(KillJobsNodeAction.INSTANCE, req)
+                    .whenComplete(ActionListener.toBiConsumer(listener)),
                 searchTp,
                 tasksService,
                 collectTask.getRamAccounting(),

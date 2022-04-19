@@ -38,9 +38,10 @@ import javax.annotation.Nullable;
 import com.carrotsearch.hppc.IntHashSet;
 import com.carrotsearch.hppc.IntSet;
 
-import io.crate.execution.jobs.kill.TransportKillJobsNodeAction;
+import io.crate.execution.jobs.kill.KillJobsNodeAction;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.common.component.AbstractLifecycleComponent;
 import org.elasticsearch.common.inject.Inject;
 import org.elasticsearch.common.inject.Singleton;
@@ -53,6 +54,7 @@ import org.elasticsearch.common.transport.PortsRange;
 import org.elasticsearch.common.transport.TransportAddress;
 import org.elasticsearch.common.util.PageCacheRecycler;
 import org.elasticsearch.http.BindHttpException;
+import org.elasticsearch.node.Node;
 import org.elasticsearch.transport.BindTransportException;
 import org.elasticsearch.transport.netty4.Netty4MessageChannelHandler;
 import org.elasticsearch.transport.netty4.Netty4OpenChannelsHandler;
@@ -127,7 +129,7 @@ public class PostgresNetty extends AbstractLifecycleComponent {
                          SQLOperations sqlOperations,
                          UserManager userManager,
                          NetworkService networkService,
-                         TransportKillJobsNodeAction transportKillJobsNodeAction,
+                         Node node,
                          Authentication authentication,
                          NettyBootstrap nettyBootstrap,
                          Netty4Transport netty4Transport,
@@ -142,7 +144,11 @@ public class PostgresNetty extends AbstractLifecycleComponent {
         this.nettyBootstrap = nettyBootstrap;
         this.transport = netty4Transport;
         this.pageCacheRecycler = pageCacheRecycler;
-        this.activeSessions = new PgSessions(transportKillJobsNodeAction);
+        this.activeSessions = new PgSessions(
+            (req, listener) -> node.client()
+                .execute(KillJobsNodeAction.INSTANCE, req)
+                .whenComplete(ActionListener.toBiConsumer(listener))
+        );
 
         if (SslSettings.isPSQLSslEnabled(settings)) {
             namedLogger.info("PSQL SSL support is enabled.");

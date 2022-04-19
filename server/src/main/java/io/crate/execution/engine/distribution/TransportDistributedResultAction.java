@@ -21,6 +21,8 @@
 
 package io.crate.execution.engine.distribution;
 
+import io.crate.execution.jobs.kill.KillJobsNodeAction;
+import io.crate.execution.jobs.kill.KillResponse;
 import io.crate.user.User;
 import io.crate.common.annotations.VisibleForTesting;
 import io.crate.common.unit.TimeValue;
@@ -32,7 +34,6 @@ import io.crate.execution.jobs.PageResultListener;
 import io.crate.execution.jobs.RootTask;
 import io.crate.execution.jobs.TasksService;
 import io.crate.execution.jobs.kill.KillJobsRequest;
-import io.crate.execution.jobs.kill.TransportKillJobsNodeAction;
 import io.crate.execution.support.NodeAction;
 import io.crate.execution.support.NodeActionRequestHandler;
 import io.crate.execution.support.Transports;
@@ -43,7 +44,7 @@ import org.elasticsearch.action.ActionListenerResponseHandler;
 import org.elasticsearch.action.bulk.BackoffPolicy;
 import org.elasticsearch.cluster.service.ClusterService;
 import org.elasticsearch.common.inject.Inject;
-import org.elasticsearch.common.settings.Settings;
+import org.elasticsearch.node.Node;
 import org.elasticsearch.threadpool.ThreadPool;
 import org.elasticsearch.transport.TransportService;
 
@@ -55,6 +56,7 @@ import java.util.Locale;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
+import java.util.function.BiConsumer;
 
 
 public class TransportDistributedResultAction implements NodeAction<DistributedResultRequest, DistributedResultResponse> {
@@ -66,7 +68,7 @@ public class TransportDistributedResultAction implements NodeAction<DistributedR
     private final TasksService tasksService;
     private final ScheduledExecutorService scheduler;
     private final ClusterService clusterService;
-    private final TransportKillJobsNodeAction killJobsAction;
+    private final BiConsumer<KillJobsRequest, ActionListener<KillResponse>> killNodeAction;
     private final BackoffPolicy backoffPolicy;
 
     @Inject
@@ -75,14 +77,15 @@ public class TransportDistributedResultAction implements NodeAction<DistributedR
                                             ThreadPool threadPool,
                                             TransportService transportService,
                                             ClusterService clusterService,
-                                            TransportKillJobsNodeAction killJobsAction,
-                                            Settings settings) {
+                                            Node node) {
         this(transports,
             tasksService,
             threadPool,
             transportService,
             clusterService,
-            killJobsAction,
+            (req, listener) -> node.client()
+                .execute(KillJobsNodeAction.INSTANCE, req)
+                .whenComplete(ActionListener.toBiConsumer(listener)),
             BackoffPolicy.exponentialBackoff());
     }
 
@@ -92,13 +95,13 @@ public class TransportDistributedResultAction implements NodeAction<DistributedR
                                      ThreadPool threadPool,
                                      TransportService transportService,
                                      ClusterService clusterService,
-                                     TransportKillJobsNodeAction killJobsAction,
+                                     BiConsumer<KillJobsRequest, ActionListener<KillResponse>> killNodeAction,
                                      BackoffPolicy backoffPolicy) {
         this.transports = transports;
         this.tasksService = tasksService;
         scheduler = threadPool.scheduler();
         this.clusterService = clusterService;
-        this.killJobsAction = killJobsAction;
+        this.killNodeAction = killNodeAction;
         this.backoffPolicy = backoffPolicy;
 
         transportService.registerRequestHandler(
@@ -189,21 +192,22 @@ public class TransportDistributedResultAction implements NodeAction<DistributedR
              * a kill to make sure that doesn't happen.
              */
             KillJobsRequest killRequest = new KillJobsRequest(
+                excludedNodeIds,
                 List.of(request.jobId()),
                 User.CRATE_USER.name(),
                 "Received data for job=" + request.jobId() + " but there is no job context present. " +
                 "This can happen due to bad network latency or if individual nodes are unresponsive due to high load"
             );
-            killJobsAction.broadcast(killRequest, new ActionListener<>() {
+            killNodeAction.accept(killRequest, new ActionListener<>() {
                 @Override
-                public void onResponse(Long numKilled) {
+                public void onResponse(KillResponse killResponse) {
                 }
 
                 @Override
                 public void onFailure(Exception e) {
                     LOGGER.debug("Could not kill " + request.jobId(), e);
                 }
-            }, excludedNodeIds);
+            });
             return CompletableFuture.failedFuture(new TaskMissing(TaskMissing.Type.ROOT, request.jobId()));
         }
     }

@@ -28,8 +28,6 @@ import org.elasticsearch.common.inject.Provider;
 import io.crate.cluster.decommission.TransportDecommissionNodeAction;
 import io.crate.execution.engine.fetch.TransportFetchNodeAction;
 import io.crate.execution.engine.profile.TransportCollectProfileNodeAction;
-import io.crate.execution.jobs.kill.TransportKillAllNodeAction;
-import io.crate.execution.jobs.kill.TransportKillJobsNodeAction;
 import io.crate.execution.jobs.transport.TransportJobAction;
 import io.crate.planner.DependencyCarrier;
 
@@ -43,22 +41,16 @@ public class TransportActionProvider {
     private final Provider<TransportFetchNodeAction> transportFetchNodeActionProvider;
     private final Provider<TransportCollectProfileNodeAction> transportCollectProfileNodeActionProvider;
     private final Provider<TransportJobAction> transportJobInitActionProvider;
-    private final Provider<TransportKillAllNodeAction> transportKillAllNodeActionProvider;
-    private final Provider<TransportKillJobsNodeAction> transportKillJobsNodeActionProvider;
     private final Provider<TransportDecommissionNodeAction> transportDecommissionNodeActionProvider;
 
     @Inject
     public TransportActionProvider(Provider<TransportFetchNodeAction> transportFetchNodeActionProvider,
                                    Provider<TransportCollectProfileNodeAction> transportCollectProfileNodeActionProvider,
-                                   Provider<TransportKillAllNodeAction> transportKillAllNodeActionProvider,
                                    Provider<TransportJobAction> transportJobInitActionProvider,
-                                   Provider<TransportKillJobsNodeAction> transportKillJobsNodeActionProvider,
                                    Provider<TransportDecommissionNodeAction> transportDecommissionNodeActionProvider) {
-        this.transportKillAllNodeActionProvider = transportKillAllNodeActionProvider;
         this.transportFetchNodeActionProvider = transportFetchNodeActionProvider;
         this.transportCollectProfileNodeActionProvider = transportCollectProfileNodeActionProvider;
         this.transportJobInitActionProvider = transportJobInitActionProvider;
-        this.transportKillJobsNodeActionProvider = transportKillJobsNodeActionProvider;
         this.transportDecommissionNodeActionProvider = transportDecommissionNodeActionProvider;
     }
 
@@ -72,14 +64,6 @@ public class TransportActionProvider {
 
     public TransportCollectProfileNodeAction transportCollectProfileNodeAction() {
         return transportCollectProfileNodeActionProvider.get();
-    }
-
-    public TransportKillAllNodeAction transportKillAllNodeAction() {
-        return transportKillAllNodeActionProvider.get();
-    }
-
-    public TransportKillJobsNodeAction transportKillJobsNodeAction() {
-        return transportKillJobsNodeActionProvider.get();
     }
 
     public TransportDecommissionNodeAction transportDecommissionNodeAction() {

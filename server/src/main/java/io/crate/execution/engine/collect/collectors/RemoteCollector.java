@@ -34,7 +34,7 @@ import io.crate.execution.jobs.PageBucketReceiver;
 import io.crate.execution.jobs.RootTask;
 import io.crate.execution.jobs.TasksService;
 import io.crate.execution.jobs.kill.KillJobsRequest;
-import io.crate.execution.jobs.kill.TransportKillJobsNodeAction;
+import io.crate.execution.jobs.kill.KillResponse;
 import io.crate.execution.jobs.transport.JobRequest;
 import io.crate.execution.jobs.transport.JobResponse;
 import io.crate.execution.jobs.transport.TransportJobAction;
@@ -49,6 +49,7 @@ import java.util.Collections;
 import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.Executor;
+import java.util.function.BiConsumer;
 
 public class RemoteCollector {
 
@@ -61,7 +62,7 @@ public class RemoteCollector {
     private final String remoteNode;
     private final Executor executor;
     private final TransportJobAction transportJobAction;
-    private final TransportKillJobsNodeAction transportKillJobsNodeAction;
+    private final BiConsumer<KillJobsRequest, ActionListener<KillResponse>> killNodeAction;
     private final TasksService tasksService;
     private final RamAccounting ramAccounting;
     private final RowConsumer consumer;
@@ -78,7 +79,7 @@ public class RemoteCollector {
                            String localNode,
                            String remoteNode,
                            TransportJobAction transportJobAction,
-                           TransportKillJobsNodeAction transportKillJobsNodeAction,
+                           BiConsumer<KillJobsRequest, ActionListener<KillResponse>> killNodeAction,
                            Executor executor,
                            TasksService tasksService,
                            RamAccounting ramAccounting,
@@ -98,7 +99,7 @@ public class RemoteCollector {
 
         this.scrollRequired = consumer.requiresScroll();
         this.transportJobAction = transportJobAction;
-        this.transportKillJobsNodeAction = transportKillJobsNodeAction;
+        this.killNodeAction = killNodeAction;
         this.tasksService = tasksService;
         this.ramAccounting = ramAccounting;
         this.consumer = consumer;
@@ -206,14 +207,15 @@ public class RemoteCollector {
 
     private void killRemoteContext() {
         KillJobsRequest killRequest = new KillJobsRequest(
+            List.of(),
             List.of(jobId),
             sessionSettings.userName(),
             null
         );
-        transportKillJobsNodeAction.broadcast(killRequest, new ActionListener<>() {
+        killNodeAction.accept(killRequest, new ActionListener<>() {
 
                 @Override
-                public void onResponse(Long numKilled) {
+                public void onResponse(KillResponse killResponse) {
                     context.kill(null);
                 }
 
