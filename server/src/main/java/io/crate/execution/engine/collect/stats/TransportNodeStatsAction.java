@@ -28,9 +28,9 @@ import io.crate.expression.reference.sys.node.NodeStatsContext;
 import io.crate.expression.reference.sys.node.NodeStatsContextFieldResolver;
 import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.action.ActionListenerResponseHandler;
+import org.elasticsearch.action.support.TransportAction;
 import org.elasticsearch.common.inject.Inject;
 import org.elasticsearch.common.inject.Singleton;
-import io.crate.common.unit.TimeValue;
 import org.elasticsearch.threadpool.ThreadPool;
 import org.elasticsearch.transport.TransportRequestOptions;
 import org.elasticsearch.transport.TransportService;
@@ -38,9 +38,8 @@ import org.elasticsearch.transport.TransportService;
 import java.util.concurrent.CompletableFuture;
 
 @Singleton
-public class TransportNodeStatsAction implements NodeAction<NodeStatsRequest, NodeStatsResponse> {
+public class TransportNodeStatsAction extends TransportAction<NodeStatsRequest, NodeStatsResponse> implements NodeAction<NodeStatsRequest, NodeStatsResponse> {
 
-    private static final String ACTION_NAME = "internal:crate:sql/sys/nodes";
     private static final String EXECUTOR = ThreadPool.Names.MANAGEMENT;
 
     private final NodeStatsContextFieldResolver nodeContextFieldsResolver;
@@ -50,27 +49,27 @@ public class TransportNodeStatsAction implements NodeAction<NodeStatsRequest, No
     public TransportNodeStatsAction(TransportService transportService,
                                     NodeStatsContextFieldResolver nodeContextFieldsResolver,
                                     Transports transports) {
+        super(NodeStatsAction.NAME);
         this.nodeContextFieldsResolver = nodeContextFieldsResolver;
         this.transports = transports;
         transportService.registerRequestHandler(
-            ACTION_NAME,
+            NodeStatsAction.NAME,
             EXECUTOR,
             NodeStatsRequest::new,
             new NodeActionRequestHandler<>(this)
         );
     }
 
-    public void execute(final String nodeName,
-                        final NodeStatsRequest request,
-                        final ActionListener<NodeStatsResponse> listener,
-                        final TimeValue timeout) {
+    @Override
+    public void doExecute(NodeStatsRequest request,
+                          ActionListener<NodeStatsResponse> listener) {
         TransportRequestOptions options = TransportRequestOptions.builder()
-            .withTimeout(timeout)
+            .withTimeout(request.getTimeout())
             .build();
 
         transports.sendRequest(
-            ACTION_NAME,
-            nodeName,
+            NodeStatsAction.NAME,
+            request.nodeId(),
             request,
             listener,
             new ActionListenerResponseHandler<>(listener, NodeStatsResponse::new),

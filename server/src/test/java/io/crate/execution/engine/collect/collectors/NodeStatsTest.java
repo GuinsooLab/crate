@@ -25,6 +25,7 @@ import io.crate.analyze.OrderBy;
 import io.crate.data.BatchIterator;
 import io.crate.execution.dsl.phases.RoutedCollectPhase;
 import io.crate.execution.engine.collect.stats.NodeStatsRequest;
+import io.crate.execution.engine.collect.stats.NodeStatsResponse;
 import io.crate.execution.engine.collect.stats.TransportNodeStatsAction;
 import io.crate.expression.InputFactory;
 import io.crate.expression.symbol.Literal;
@@ -44,6 +45,7 @@ import org.elasticsearch.cluster.node.DiscoveryNode;
 import io.crate.common.unit.TimeValue;
 import org.junit.Before;
 import org.junit.Test;
+import org.mockito.ArgumentCaptor;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -51,12 +53,15 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
+import java.util.function.BiConsumer;
+import java.util.stream.Collectors;
 
 import static io.crate.testing.DiscoveryNodes.newNode;
 import static io.crate.testing.TestingHelpers.createNodeContext;
+import static org.hamcrest.Matchers.is;
 import static org.mockito.Mockito.any;
-import static org.mockito.Mockito.eq;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoMoreInteractions;
 import static org.mockito.Mockito.when;
@@ -65,7 +70,8 @@ public class NodeStatsTest extends ESTestCase {
 
     private RoutedCollectPhase collectPhase;
     private Collection<DiscoveryNode> nodes = new HashSet<>();
-    private TransportNodeStatsAction transportNodeStatsAction = mock(TransportNodeStatsAction.class);
+    private TransportNodeStatsAction nodeStatsAction;
+    private BiConsumer<NodeStatsRequest, ActionListener<NodeStatsResponse>> nodeStatesExecutor;
     private TransactionContext txnCtx = CoordinatorTxnCtx.systemTransactionContext();
 
     private Reference idRef;
@@ -75,6 +81,9 @@ public class NodeStatsTest extends ESTestCase {
 
     @Before
     public void prepare() {
+        nodeStatsAction = mock(TransportNodeStatsAction.class);
+        nodeStatesExecutor = nodeStatsAction::doExecute;
+
         idRef = new Reference(
             new ReferenceIdent(SysNodesTableInfo.IDENT, SysNodesTableInfo.Columns.ID),
             RowGranularity.DOC,
@@ -112,7 +121,7 @@ public class NodeStatsTest extends ESTestCase {
         when(collectPhase.toCollect()).thenReturn(toCollect);
 
         BatchIterator iterator = NodeStats.newInstance(
-            transportNodeStatsAction,
+            nodeStatesExecutor,
             collectPhase,
             nodes,
             txnCtx,
@@ -121,7 +130,7 @@ public class NodeStatsTest extends ESTestCase {
         iterator.loadNextBatch();
 
         // Because only id and name are selected, transportNodesStatsAction should be never used
-        verifyNoMoreInteractions(transportNodeStatsAction);
+        verifyNoMoreInteractions(nodeStatsAction);
     }
 
     @Test
@@ -132,14 +141,14 @@ public class NodeStatsTest extends ESTestCase {
         when(collectPhase.toCollect()).thenReturn(toCollect);
 
         BatchIterator iterator = NodeStats.newInstance(
-            transportNodeStatsAction,
+            nodeStatesExecutor,
             collectPhase,
             nodes,
             txnCtx,
             new InputFactory(nodeCtx)
         );
         iterator.loadNextBatch();
-        verifyNoMoreInteractions(transportNodeStatsAction);
+        verifyNoMoreInteractions(nodeStatsAction);
     }
 
     @Test
@@ -151,7 +160,7 @@ public class NodeStatsTest extends ESTestCase {
         when(collectPhase.toCollect()).thenReturn(toCollect);
 
         BatchIterator iterator = NodeStats.newInstance(
-            transportNodeStatsAction,
+            nodeStatesExecutor,
             collectPhase,
             nodes,
             txnCtx,
@@ -159,12 +168,20 @@ public class NodeStatsTest extends ESTestCase {
         );
         iterator.loadNextBatch();
 
+        ArgumentCaptor<NodeStatsRequest> req = ArgumentCaptor.forClass(NodeStatsRequest.class);
         // Hostnames needs to be collected so requests need to be performed
-        verify(transportNodeStatsAction).execute(eq("nodeOne"), any(NodeStatsRequest.class), any(ActionListener.class),
-            eq(TimeValue.timeValueMillis(3000L)));
-        verify(transportNodeStatsAction).execute(eq("nodeTwo"), any(NodeStatsRequest.class), any(ActionListener.class),
-            eq(TimeValue.timeValueMillis(3000L)));
-        verifyNoMoreInteractions(transportNodeStatsAction);
+        verify(nodeStatsAction, times(2)).doExecute(req.capture(), any(ActionListener.class));
+        var capturedReq1 = req.getAllValues().get(0);
+        var capturedReq2 = req.getAllValues().get(1);
+
+        assertThat(req.getAllValues().stream()
+                       .map(NodeStatsRequest::nodeId)
+                       .sorted()
+                       .collect(Collectors.toList()), is(List.of("nodeOne", "nodeTwo")));
+        assertThat(capturedReq1.getTimeout(), is(TimeValue.timeValueMillis(3000L)));
+        assertThat(capturedReq2.getTimeout(), is(TimeValue.timeValueMillis(3000L)));
+
+        verifyNoMoreInteractions(nodeStatsAction);
     }
 
     @Test
@@ -180,7 +197,7 @@ public class NodeStatsTest extends ESTestCase {
             new Object[]{"nodeTwo"}
         );
         BatchIteratorTester tester = new BatchIteratorTester(() -> NodeStats.newInstance(
-            transportNodeStatsAction,
+            nodeStatesExecutor,
             collectPhase,
             nodes,
             txnCtx,

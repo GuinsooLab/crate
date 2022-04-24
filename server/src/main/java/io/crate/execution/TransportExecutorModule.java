@@ -33,7 +33,6 @@ import io.crate.execution.ddl.tables.TransportOpenCloseTableOrPartitionAction;
 import io.crate.execution.ddl.tables.TransportRenameTableAction;
 import io.crate.execution.ddl.views.TransportCreateViewAction;
 import io.crate.execution.ddl.views.TransportDropViewAction;
-import io.crate.execution.engine.collect.stats.TransportNodeStatsAction;
 import io.crate.execution.engine.distribution.TransportDistributedResultAction;
 import io.crate.execution.engine.fetch.TransportFetchNodeAction;
 import io.crate.execution.engine.profile.TransportCollectProfileNodeAction;
@@ -63,7 +62,6 @@ public class TransportExecutorModule extends AbstractModule {
         bind(TransportFetchNodeAction.class).asEagerSingleton();
         bind(TransportDecommissionNodeAction.class).asEagerSingleton();
         bind(TransportCollectProfileNodeAction.class).asEagerSingleton();
-        bind(TransportNodeStatsAction.class).asEagerSingleton();
         bind(TransportCreateTableAction.class).asEagerSingleton();
         bind(TransportRenameTableAction.class).asEagerSingleton();
         bind(TransportSwapAndDropIndexNameAction.class).asEagerSingleton();

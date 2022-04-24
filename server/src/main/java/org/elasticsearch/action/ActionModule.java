@@ -114,6 +114,8 @@ import io.crate.execution.dml.delete.ShardDeleteAction;
 import io.crate.execution.dml.delete.TransportShardDeleteAction;
 import io.crate.execution.dml.upsert.ShardUpsertAction;
 import io.crate.execution.dml.upsert.TransportShardUpsertAction;
+import io.crate.execution.engine.collect.stats.NodeStatsAction;
+import io.crate.execution.engine.collect.stats.TransportNodeStatsAction;
 import io.crate.execution.jobs.kill.KillAllNodeAction;
 import io.crate.execution.jobs.kill.KillJobsNodeAction;
 import io.crate.execution.jobs.kill.TransportKillAllNodeAction;
@@ -197,6 +199,7 @@ public class ActionModule extends AbstractModule {
         actions.register(CreatePartitionsAction.INSTANCE, TransportCreatePartitionsAction.class);
         actions.register(KillJobsNodeAction.INSTANCE, TransportKillJobsNodeAction.class);
         actions.register(KillAllNodeAction.INSTANCE, TransportKillAllNodeAction.class);
+        actions.register(NodeStatsAction.INSTANCE, TransportNodeStatsAction.class);
 
         actionPlugins.stream().flatMap(p -> p.getActions().stream()).forEach(actions::register);
 

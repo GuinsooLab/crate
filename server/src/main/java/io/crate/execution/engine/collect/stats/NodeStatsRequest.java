@@ -21,25 +21,40 @@
 
 package io.crate.execution.engine.collect.stats;
 
-import io.crate.metadata.ColumnIdent;
-import org.elasticsearch.common.io.stream.StreamInput;
-import org.elasticsearch.common.io.stream.StreamOutput;
-import org.elasticsearch.transport.TransportRequest;
-
 import java.io.IOException;
 import java.util.HashSet;
 import java.util.Set;
 
+import org.elasticsearch.Version;
+import org.elasticsearch.common.io.stream.StreamInput;
+import org.elasticsearch.common.io.stream.StreamOutput;
+import org.elasticsearch.transport.TransportRequest;
+
+import io.crate.common.unit.TimeValue;
+import io.crate.metadata.ColumnIdent;
+
 public class NodeStatsRequest extends TransportRequest {
 
+    private final String nodeId;
     private final Set<ColumnIdent> columns;
+    private final TimeValue timeout;
 
-    public NodeStatsRequest(Set<ColumnIdent> columns) {
+    public NodeStatsRequest(String nodeId, TimeValue timeout, Set<ColumnIdent> columns) {
+        this.nodeId = nodeId;
+        this.timeout = timeout;
         this.columns = columns;
+    }
+
+    public String nodeId() {
+        return nodeId;
     }
 
     public Set<ColumnIdent> columnIdents() {
         return columns;
+    }
+
+    public TimeValue getTimeout() {
+        return timeout;
     }
 
     public NodeStatsRequest(StreamInput in) throws IOException {
@@ -49,6 +64,13 @@ public class NodeStatsRequest extends TransportRequest {
         for (int i = 0; i < columnIdentsSize; i++) {
             columns.add(new ColumnIdent(in));
         }
+        if (in.getVersion().onOrAfter(Version.V_4_8_0)) {
+            nodeId = in.readString();
+            timeout = in.readTimeValue();
+        } else {
+            nodeId = null;
+            timeout = null;
+        }
     }
 
     @Override
@@ -57,6 +79,10 @@ public class NodeStatsRequest extends TransportRequest {
         out.writeVInt(columns.size());
         for (ColumnIdent columnIdent : columns) {
             columnIdent.writeTo(out);
+        }
+        if (out.getVersion().onOrAfter(Version.V_4_8_0)) {
+            out.writeString(nodeId);
+            out.writeTimeValue(timeout);
         }
     }
 }

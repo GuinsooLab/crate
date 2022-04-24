@@ -19,34 +19,16 @@
  * software solely pursuant to the terms of the relevant commercial agreement.
  */
 
-package io.crate.execution.support;
+package io.crate.execution.engine.collect.stats;
 
-import java.io.IOException;
+import org.elasticsearch.action.ActionType;
 
-import org.elasticsearch.common.io.stream.StreamInput;
-import org.elasticsearch.common.io.stream.StreamOutput;
-import org.elasticsearch.transport.TransportRequest;
+public class NodeStatsAction extends ActionType<NodeStatsResponse> {
 
-public class NodeRequest extends TransportRequest {
+    public static final String NAME = "internal:crate:sql/sys/nodes";
+    public static final NodeStatsAction INSTANCE = new NodeStatsAction();
 
-    private final String nodeId;
-
-    public NodeRequest(String nodeId) {
-        this.nodeId = nodeId;
-    }
-
-    public NodeRequest(StreamInput in) throws IOException {
-        super(in);
-        this.nodeId = in.readOptionalString();
-    }
-
-    @Override
-    public void writeTo(StreamOutput out) throws IOException {
-        super.writeTo(out);
-        out.writeOptionalString(nodeId);
-    }
-
-    public String getNodeId() {
-        return nodeId;
+    private NodeStatsAction() {
+        super(NAME);
     }
 }
