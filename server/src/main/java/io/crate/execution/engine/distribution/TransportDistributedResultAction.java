@@ -42,6 +42,7 @@ import org.apache.logging.log4j.Logger;
 import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.action.ActionListenerResponseHandler;
 import org.elasticsearch.action.bulk.BackoffPolicy;
+import org.elasticsearch.action.support.TransportAction;
 import org.elasticsearch.cluster.service.ClusterService;
 import org.elasticsearch.common.inject.Inject;
 import org.elasticsearch.node.Node;
@@ -59,10 +60,10 @@ import java.util.concurrent.TimeUnit;
 import java.util.function.BiConsumer;
 
 
-public class TransportDistributedResultAction implements NodeAction<DistributedResultRequest, DistributedResultResponse> {
+public class TransportDistributedResultAction extends TransportAction<DistributedResultRequest, DistributedResultResponse>
+    implements NodeAction<DistributedResultRequest, DistributedResultResponse> {
 
     private static final Logger LOGGER = LogManager.getLogger(TransportDistributedResultAction.class);
-    private static final String DISTRIBUTED_RESULT_ACTION = "internal:crate:sql/node/merge";
 
     private final Transports transports;
     private final TasksService tasksService;
@@ -97,6 +98,7 @@ public class TransportDistributedResultAction implements NodeAction<DistributedR
                                      ClusterService clusterService,
                                      BiConsumer<KillJobsRequest, ActionListener<KillResponse>> killNodeAction,
                                      BackoffPolicy backoffPolicy) {
+        super(DistributedResultAction.NAME);
         this.transports = transports;
         this.tasksService = tasksService;
         scheduler = threadPool.scheduler();
@@ -105,15 +107,17 @@ public class TransportDistributedResultAction implements NodeAction<DistributedR
         this.backoffPolicy = backoffPolicy;
 
         transportService.registerRequestHandler(
-            DISTRIBUTED_RESULT_ACTION,
+            DistributedResultAction.NAME,
             ThreadPool.Names.SAME, // <- we will dispatch later at the nodeOperation on non failures
             DistributedResultRequest::new,
             new NodeActionRequestHandler<>(this));
     }
 
-    void pushResult(String node, DistributedResultRequest request, ActionListener<DistributedResultResponse> listener) {
-        transports.sendRequest(DISTRIBUTED_RESULT_ACTION, node, request, listener,
-            new ActionListenerResponseHandler<>(listener, DistributedResultResponse::new));
+    @Override
+    protected void doExecute(DistributedResultRequest request,
+                             ActionListener<DistributedResultResponse> listener) {
+        transports.sendRequest(DistributedResultAction.NAME, request.nodeId(), request, listener,
+                               new ActionListenerResponseHandler<>(listener, DistributedResultResponse::new));
     }
 
     @Override

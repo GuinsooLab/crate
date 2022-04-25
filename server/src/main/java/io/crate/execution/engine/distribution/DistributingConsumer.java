@@ -41,6 +41,7 @@ import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.function.BiConsumer;
 
 /**
  * Consumer which sends requests to downstream nodes every {@link #pageSize} rows.
@@ -59,7 +60,7 @@ public class DistributingConsumer implements RowConsumer {
     private final int targetPhaseId;
     private final byte inputId;
     private final int bucketIdx;
-    private final TransportDistributedResultAction distributedResultAction;
+    private final BiConsumer<DistributedResultRequest, ActionListener<DistributedResultResponse>> distributedResultAction;
     private final int pageSize;
     private final StreamBucket[] buckets;
     private final List<Downstream> downstreams;
@@ -78,7 +79,7 @@ public class DistributingConsumer implements RowConsumer {
                                 byte inputId,
                                 int bucketIdx,
                                 Collection<String> downstreamNodeIds,
-                                TransportDistributedResultAction distributedResultAction,
+                                BiConsumer<DistributedResultRequest, ActionListener<DistributedResultResponse>> distributedResultAction,
                                 int pageSize) {
         this.traceEnabled = LOGGER.isTraceEnabled();
         this.responseExecutor = responseExecutor;
@@ -140,8 +141,7 @@ public class DistributingConsumer implements RowConsumer {
     private void forwardFailure(@Nullable final BatchIterator it, final Throwable f) {
         Throwable failure = SQLExceptions.unwrap(f); // make sure it's streamable
         AtomicInteger numActiveRequests = new AtomicInteger(downstreams.size());
-        DistributedResultRequest request =
-            new DistributedResultRequest(jobId, targetPhaseId, inputId, bucketIdx, failure, false);
+
         for (int i = 0; i < downstreams.size(); i++) {
             Downstream downstream = downstreams.get(i);
             if (downstream.needsMoreData == false) {
@@ -149,31 +149,39 @@ public class DistributingConsumer implements RowConsumer {
             } else {
                 if (traceEnabled) {
                     LOGGER.trace("forwardFailure targetNode={} jobId={} targetPhase={}/{} bucket={} failure={}",
-                        downstream.nodeId, jobId, targetPhaseId, inputId, bucketIdx, failure);
+                                 downstream.nodeId, jobId, targetPhaseId, inputId, bucketIdx, failure);
                 }
-                distributedResultAction.pushResult(downstream.nodeId, request, new ActionListener<>() {
-                    @Override
-                    public void onResponse(DistributedResultResponse response) {
-                        downstream.needsMoreData = false;
-                        countdownAndMaybeCloseIt(numActiveRequests, it);
-                    }
-
-                    @Override
-                    public void onFailure(Exception e) {
-                        if (traceEnabled) {
-                            LOGGER.trace(
-                                "Error sending failure to downstream={} jobId={} targetPhase={}/{} bucket={} failure={}",
-                                downstream.nodeId,
-                                jobId,
-                                targetPhaseId,
-                                inputId,
-                                bucketIdx,
-                                e
-                            );
+                distributedResultAction.accept(
+                    new DistributedResultRequest(downstream.nodeId,
+                                                 jobId,
+                                                 targetPhaseId,
+                                                 inputId,
+                                                 bucketIdx,
+                                                 failure,
+                                                 false),
+                    new ActionListener<>() {
+                        @Override
+                        public void onResponse(DistributedResultResponse response) {
+                            downstream.needsMoreData = false;
+                            countdownAndMaybeCloseIt(numActiveRequests, it);
                         }
-                        countdownAndMaybeCloseIt(numActiveRequests, it);
-                    }
-                });
+
+                        @Override
+                        public void onFailure(Exception e) {
+                            if (traceEnabled) {
+                                LOGGER.trace(
+                                    "Error sending failure to downstream={} jobId={} targetPhase={}/{} bucket={} failure={}",
+                                    downstream.nodeId,
+                                    jobId,
+                                    targetPhaseId,
+                                    inputId,
+                                    bucketIdx,
+                                    e
+                                );
+                            }
+                            countdownAndMaybeCloseIt(numActiveRequests, it);
+                        }
+                    });
             }
         }
     }
@@ -201,9 +209,14 @@ public class DistributingConsumer implements RowConsumer {
                 LOGGER.trace("forwardResults targetNode={} jobId={} targetPhase={}/{} bucket={} isLast={}",
                     downstream.nodeId, jobId, targetPhaseId, inputId, bucketIdx, isLast);
             }
-            distributedResultAction.pushResult(
-                downstream.nodeId,
-                new DistributedResultRequest(jobId, targetPhaseId, inputId, bucketIdx, buckets[i], isLast),
+            distributedResultAction.accept(
+                new DistributedResultRequest(downstream.nodeId,
+                                             jobId,
+                                             targetPhaseId,
+                                             inputId,
+                                             bucketIdx,
+                                             buckets[i],
+                                             isLast),
                 new ActionListener<>() {
                     @Override
                     public void onResponse(DistributedResultResponse response) {
@@ -223,7 +236,9 @@ public class DistributingConsumer implements RowConsumer {
         }
     }
 
-    private void countdownAndMaybeContinue(BatchIterator<Row> it, AtomicInteger numActiveRequests, boolean sameExecutor) {
+    private void countdownAndMaybeContinue(BatchIterator<Row> it,
+                                           AtomicInteger numActiveRequests,
+                                           boolean sameExecutor) {
         if (numActiveRequests.decrementAndGet() == 0) {
             if (downstreams.stream().anyMatch(Downstream::needsMoreData)) {
                 if (failure == null) {

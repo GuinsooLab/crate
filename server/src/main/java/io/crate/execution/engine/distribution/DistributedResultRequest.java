@@ -23,6 +23,8 @@ package io.crate.execution.engine.distribution;
 
 import io.crate.Streamer;
 import io.crate.data.Bucket;
+
+import org.elasticsearch.Version;
 import org.elasticsearch.common.io.stream.StreamInput;
 import org.elasticsearch.common.io.stream.StreamOutput;
 import org.elasticsearch.transport.TransportRequest;
@@ -33,6 +35,7 @@ import java.util.UUID;
 
 public class DistributedResultRequest extends TransportRequest {
 
+    private final String nodeId;
     private final byte inputId;
     private final int executionPhaseId;
     private final int bucketIdx;
@@ -44,33 +47,40 @@ public class DistributedResultRequest extends TransportRequest {
     private Throwable throwable = null;
     private boolean isKilled = false;
 
-    private DistributedResultRequest(UUID jobId, byte inputId, int executionPhaseId, int bucketIdx) {
+    private DistributedResultRequest(String nodeId, UUID jobId, byte inputId, int executionPhaseId, int bucketIdx) {
+        this.nodeId = nodeId;
         this.jobId = jobId;
         this.executionPhaseId = executionPhaseId;
         this.bucketIdx = bucketIdx;
         this.inputId = inputId;
     }
 
-    public DistributedResultRequest(UUID jobId,
+    public DistributedResultRequest(String nodeId,
+                                    UUID jobId,
                                     int executionPhaseId,
                                     byte inputId,
                                     int bucketIdx,
                                     StreamBucket rows,
                                     boolean isLast) {
-        this(jobId, inputId, executionPhaseId, bucketIdx);
+        this(nodeId, jobId, inputId, executionPhaseId, bucketIdx);
         this.rows = rows;
         this.isLast = isLast;
     }
 
-    public DistributedResultRequest(UUID jobId,
+    public DistributedResultRequest(String nodeId,
+                                    UUID jobId,
                                     int executionPhaseId,
                                     byte inputId,
                                     int bucketIdx,
                                     Throwable throwable,
                                     boolean isKilled) {
-        this(jobId, inputId, executionPhaseId, bucketIdx);
+        this(nodeId, jobId, inputId, executionPhaseId, bucketIdx);
         this.throwable = throwable;
         this.isKilled = isKilled;
+    }
+
+    public String nodeId() {
+        return nodeId;
     }
 
     public UUID jobId() {
@@ -122,6 +132,12 @@ public class DistributedResultRequest extends TransportRequest {
         } else {
             rows = new StreamBucket(in);
         }
+
+        if (in.getVersion().onOrAfter(Version.V_4_8_0)) {
+            nodeId = in.readString();
+        } else {
+            nodeId = null;
+        }
     }
 
     @Override
@@ -141,6 +157,10 @@ public class DistributedResultRequest extends TransportRequest {
             out.writeBoolean(isKilled);
         } else {
             rows.writeTo(out);
+        }
+
+        if (out.getVersion().onOrAfter(Version.V_4_8_0)) {
+            out.writeString(nodeId);
         }
     }
 }
