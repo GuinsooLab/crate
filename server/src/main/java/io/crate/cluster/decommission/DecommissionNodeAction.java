@@ -6,7 +6,7 @@
  * you may not use this file except in compliance with the License.  You may
  * obtain a copy of the License at
  *
- *   http://www.apache.org/licenses/LICENSE-2.0
+ *     http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
@@ -21,18 +21,15 @@
 
 package io.crate.cluster.decommission;
 
-import org.elasticsearch.common.io.stream.Writeable.Reader;
-import org.elasticsearch.test.AbstractWireSerializingTestCase;
+import org.elasticsearch.action.ActionType;
+import org.elasticsearch.action.support.master.AcknowledgedResponse;
 
-public class DecommissionNodeRequestTest extends AbstractWireSerializingTestCase<DecommissionNodeRequest> {
+public class DecommissionNodeAction extends ActionType<AcknowledgedResponse> {
 
-    @Override
-    protected DecommissionNodeRequest createTestInstance() {
-        return new DecommissionNodeRequest("dummyNodeId");
-    }
+    public static final String NAME = "internal:crate:sql/decommission/node";
+    public static final DecommissionNodeAction INSTANCE = new DecommissionNodeAction();
 
-    @Override
-    protected Reader<DecommissionNodeRequest> instanceReader() {
-        return DecommissionNodeRequest::new;
+    private DecommissionNodeAction() {
+        super(NAME);
     }
 }

@@ -27,6 +27,7 @@ import io.crate.execution.support.NodeActionRequestHandler;
 import io.crate.execution.support.Transports;
 import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.action.ActionListenerResponseHandler;
+import org.elasticsearch.action.support.TransportAction;
 import org.elasticsearch.action.support.master.AcknowledgedResponse;
 import org.elasticsearch.common.inject.Inject;
 import org.elasticsearch.common.inject.Singleton;
@@ -36,9 +37,9 @@ import org.elasticsearch.transport.TransportService;
 import java.util.concurrent.CompletableFuture;
 
 @Singleton
-public class TransportDecommissionNodeAction implements NodeAction<DecommissionNodeRequest, AcknowledgedResponse> {
+public class TransportDecommissionNodeAction extends TransportAction<DecommissionNodeRequest, AcknowledgedResponse>
+    implements NodeAction<DecommissionNodeRequest, AcknowledgedResponse> {
 
-    private static final String ACTION_NAME = "internal:crate:sql/decommission/node";
     private static final String EXECUTOR = ThreadPool.Names.MANAGEMENT;
 
     private final DecommissioningService decommissioningService;
@@ -48,22 +49,23 @@ public class TransportDecommissionNodeAction implements NodeAction<DecommissionN
     public TransportDecommissionNodeAction(TransportService transportService,
                                            DecommissioningService decommissioningService,
                                            Transports transports) {
+        super(DecommissionNodeAction.NAME);
         this.decommissioningService = decommissioningService;
         this.transports = transports;
         transportService.registerRequestHandler(
-            ACTION_NAME,
+            DecommissionNodeAction.NAME,
             EXECUTOR,
             DecommissionNodeRequest::new,
             new NodeActionRequestHandler<>(this)
         );
     }
 
-    public void execute(final String nodeId,
-                        final DecommissionNodeRequest request,
-                        final ActionListener<AcknowledgedResponse> listener) {
+    @Override
+    public void doExecute(DecommissionNodeRequest request,
+                             ActionListener<AcknowledgedResponse> listener) {
         transports.sendRequest(
-            ACTION_NAME,
-            nodeId,
+            DecommissionNodeAction.NAME,
+            request.nodeId(),
             request,
             listener,
             new ActionListenerResponseHandler<>(listener, AcknowledgedResponse::new)

@@ -23,17 +23,38 @@ package io.crate.cluster.decommission;
 
 import java.io.IOException;
 
+import org.elasticsearch.Version;
 import org.elasticsearch.common.io.stream.StreamInput;
+import org.elasticsearch.common.io.stream.StreamOutput;
 import org.elasticsearch.transport.TransportRequest;
 
 public class DecommissionNodeRequest extends TransportRequest {
 
-    public DecommissionNodeRequest() {
-        super();
+    private final String nodeId;
+
+    public DecommissionNodeRequest(String nodeId) {
+        this.nodeId = nodeId;
     }
 
     public DecommissionNodeRequest(StreamInput in) throws IOException {
         super(in);
+        if (in.getVersion().onOrAfter(Version.V_4_8_0)) {
+            nodeId = in.readString();
+        } else {
+            nodeId = null;
+        }
+    }
+
+    @Override
+    public void writeTo(StreamOutput out) throws IOException {
+        super.writeTo(out);
+        if (out.getVersion().onOrAfter(Version.V_4_8_0)) {
+            out.writeString(nodeId);
+        }
+    }
+
+    public String nodeId() {
+        return nodeId;
     }
 
     @Override

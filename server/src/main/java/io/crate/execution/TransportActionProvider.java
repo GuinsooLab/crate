@@ -25,7 +25,6 @@ import org.elasticsearch.client.ElasticsearchClient;
 import org.elasticsearch.common.inject.Inject;
 import org.elasticsearch.common.inject.Provider;
 
-import io.crate.cluster.decommission.TransportDecommissionNodeAction;
 import io.crate.execution.engine.fetch.TransportFetchNodeAction;
 import io.crate.execution.jobs.transport.TransportJobAction;
 import io.crate.planner.DependencyCarrier;
@@ -39,15 +38,12 @@ public class TransportActionProvider {
 
     private final Provider<TransportFetchNodeAction> transportFetchNodeActionProvider;
     private final Provider<TransportJobAction> transportJobInitActionProvider;
-    private final Provider<TransportDecommissionNodeAction> transportDecommissionNodeActionProvider;
 
     @Inject
     public TransportActionProvider(Provider<TransportFetchNodeAction> transportFetchNodeActionProvider,
-                                   Provider<TransportJobAction> transportJobInitActionProvider,
-                                   Provider<TransportDecommissionNodeAction> transportDecommissionNodeActionProvider) {
+                                   Provider<TransportJobAction> transportJobInitActionProvider) {
         this.transportFetchNodeActionProvider = transportFetchNodeActionProvider;
         this.transportJobInitActionProvider = transportJobInitActionProvider;
-        this.transportDecommissionNodeActionProvider = transportDecommissionNodeActionProvider;
     }
 
     public TransportJobAction transportJobInitAction() {
@@ -58,7 +54,4 @@ public class TransportActionProvider {
         return transportFetchNodeActionProvider.get();
     }
 
-    public TransportDecommissionNodeAction transportDecommissionNodeAction() {
-        return transportDecommissionNodeActionProvider.get();
-    }
 }

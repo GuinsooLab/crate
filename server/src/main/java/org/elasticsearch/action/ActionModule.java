@@ -24,6 +24,12 @@ import static java.util.Collections.unmodifiableMap;
 import java.util.List;
 import java.util.Map;
 
+import io.crate.cluster.decommission.DecommissionNodeAction;
+import io.crate.cluster.decommission.TransportDecommissionNodeAction;
+import io.crate.execution.dml.delete.ShardDeleteAction;
+import io.crate.execution.dml.delete.TransportShardDeleteAction;
+import io.crate.execution.dml.upsert.ShardUpsertAction;
+import io.crate.execution.dml.upsert.TransportShardUpsertAction;
 import org.elasticsearch.action.admin.cluster.configuration.AddVotingConfigExclusionsAction;
 import org.elasticsearch.action.admin.cluster.configuration.ClearVotingConfigExclusionsAction;
 import org.elasticsearch.action.admin.cluster.configuration.TransportAddVotingConfigExclusionsAction;
@@ -110,10 +116,6 @@ import io.crate.blob.StartBlobAction;
 import io.crate.blob.TransportDeleteBlobAction;
 import io.crate.blob.TransportPutChunkAction;
 import io.crate.blob.TransportStartBlobAction;
-import io.crate.execution.dml.delete.ShardDeleteAction;
-import io.crate.execution.dml.delete.TransportShardDeleteAction;
-import io.crate.execution.dml.upsert.ShardUpsertAction;
-import io.crate.execution.dml.upsert.TransportShardUpsertAction;
 import io.crate.execution.engine.collect.stats.NodeStatsAction;
 import io.crate.execution.engine.collect.stats.TransportNodeStatsAction;
 import io.crate.execution.engine.profile.CollectProfileNodeAction;
@@ -203,6 +205,7 @@ public class ActionModule extends AbstractModule {
         actions.register(KillAllNodeAction.INSTANCE, TransportKillAllNodeAction.class);
         actions.register(NodeStatsAction.INSTANCE, TransportNodeStatsAction.class);
         actions.register(CollectProfileNodeAction.INSTANCE, TransportCollectProfileNodeAction.class);
+        actions.register(DecommissionNodeAction.INSTANCE, TransportDecommissionNodeAction.class);
 
         actionPlugins.stream().flatMap(p -> p.getActions().stream()).forEach(actions::register);
 
