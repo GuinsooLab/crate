@@ -26,13 +26,17 @@ import io.crate.action.FutureActionListener;
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
+import java.util.function.BiConsumer;
+
+import org.elasticsearch.action.ActionListener;
 
 public class TransportCollectProfileOperation implements CollectProfileOperation {
 
     private final UUID jobId;
-    private final TransportCollectProfileNodeAction transportAction;
+    private final BiConsumer<NodeCollectProfileRequest, ActionListener<NodeCollectProfileResponse>> transportAction;
 
-    public TransportCollectProfileOperation(TransportCollectProfileNodeAction transportAction, UUID jobId) {
+    public TransportCollectProfileOperation(
+        BiConsumer<NodeCollectProfileRequest, ActionListener<NodeCollectProfileResponse>> transportAction, UUID jobId) {
         this.jobId = jobId;
         this.transportAction = transportAction;
     }
@@ -41,7 +45,7 @@ public class TransportCollectProfileOperation implements CollectProfileOperation
     public CompletableFuture<Map<String, Object>> collect(String nodeId) {
         FutureActionListener<NodeCollectProfileResponse, Map<String, Object>> listener =
             new FutureActionListener<>(NodeCollectProfileResponse::durationByContextIdent);
-        transportAction.execute(nodeId, new NodeCollectProfileRequest(jobId), listener);
+        transportAction.accept(new NodeCollectProfileRequest(nodeId, jobId), listener);
         return listener;
     }
 }

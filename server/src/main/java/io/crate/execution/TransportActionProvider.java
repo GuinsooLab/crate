@@ -27,7 +27,6 @@ import org.elasticsearch.common.inject.Provider;
 
 import io.crate.cluster.decommission.TransportDecommissionNodeAction;
 import io.crate.execution.engine.fetch.TransportFetchNodeAction;
-import io.crate.execution.engine.profile.TransportCollectProfileNodeAction;
 import io.crate.execution.jobs.transport.TransportJobAction;
 import io.crate.planner.DependencyCarrier;
 
@@ -39,17 +38,14 @@ import io.crate.planner.DependencyCarrier;
 public class TransportActionProvider {
 
     private final Provider<TransportFetchNodeAction> transportFetchNodeActionProvider;
-    private final Provider<TransportCollectProfileNodeAction> transportCollectProfileNodeActionProvider;
     private final Provider<TransportJobAction> transportJobInitActionProvider;
     private final Provider<TransportDecommissionNodeAction> transportDecommissionNodeActionProvider;
 
     @Inject
     public TransportActionProvider(Provider<TransportFetchNodeAction> transportFetchNodeActionProvider,
-                                   Provider<TransportCollectProfileNodeAction> transportCollectProfileNodeActionProvider,
                                    Provider<TransportJobAction> transportJobInitActionProvider,
                                    Provider<TransportDecommissionNodeAction> transportDecommissionNodeActionProvider) {
         this.transportFetchNodeActionProvider = transportFetchNodeActionProvider;
-        this.transportCollectProfileNodeActionProvider = transportCollectProfileNodeActionProvider;
         this.transportJobInitActionProvider = transportJobInitActionProvider;
         this.transportDecommissionNodeActionProvider = transportDecommissionNodeActionProvider;
     }
@@ -60,10 +56,6 @@ public class TransportActionProvider {
 
     public TransportFetchNodeAction transportFetchNodeAction() {
         return transportFetchNodeActionProvider.get();
-    }
-
-    public TransportCollectProfileNodeAction transportCollectProfileNodeAction() {
-        return transportCollectProfileNodeActionProvider.get();
     }
 
     public TransportDecommissionNodeAction transportDecommissionNodeAction() {

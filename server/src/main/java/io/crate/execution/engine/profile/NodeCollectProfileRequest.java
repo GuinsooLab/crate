@@ -21,6 +21,7 @@
 
 package io.crate.execution.engine.profile;
 
+import org.elasticsearch.Version;
 import org.elasticsearch.common.io.stream.StreamInput;
 import org.elasticsearch.common.io.stream.StreamOutput;
 import org.elasticsearch.transport.TransportRequest;
@@ -30,10 +31,16 @@ import java.util.UUID;
 
 public class NodeCollectProfileRequest extends TransportRequest {
 
+    private final String nodeId;
     private final UUID jobId;
 
-    NodeCollectProfileRequest(UUID jobId) {
+    NodeCollectProfileRequest(String nodeId, UUID jobId) {
+        this.nodeId = nodeId;
         this.jobId = jobId;
+    }
+
+    public String nodeId() {
+        return nodeId;
     }
 
     public UUID jobId() {
@@ -42,12 +49,20 @@ public class NodeCollectProfileRequest extends TransportRequest {
 
     public NodeCollectProfileRequest(StreamInput in) throws IOException {
         super(in);
+        if (in.getVersion().onOrAfter(Version.V_4_8_0)) {
+            nodeId = in.readString();
+        } else {
+            nodeId = null;
+        }
         jobId = new UUID(in.readLong(), in.readLong());
     }
 
     @Override
     public void writeTo(StreamOutput out) throws IOException {
         super.writeTo(out);
+        if (out.getVersion().onOrAfter(Version.V_4_8_0)) {
+            out.writeString(nodeId);
+        }
         out.writeLong(jobId.getMostSignificantBits());
         out.writeLong(jobId.getLeastSignificantBits());
     }

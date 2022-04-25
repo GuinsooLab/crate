@@ -6,7 +6,7 @@
  * you may not use this file except in compliance with the License.  You may
  * obtain a copy of the License at
  *
- *   http://www.apache.org/licenses/LICENSE-2.0
+ *     http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
@@ -21,30 +21,14 @@
 
 package io.crate.execution.engine.profile;
 
-import org.elasticsearch.common.io.stream.BytesStreamOutput;
-import org.elasticsearch.common.io.stream.StreamInput;
-import org.junit.Test;
+import org.elasticsearch.action.ActionType;
 
-import java.util.UUID;
+public class CollectProfileNodeAction extends ActionType<NodeCollectProfileResponse> {
 
-import static org.hamcrest.MatcherAssert.assertThat;
-import static org.hamcrest.Matchers.is;
+    public static final String NAME = "internal:crate:sql/node/profile/collect";
+    public static final CollectProfileNodeAction INSTANCE = new CollectProfileNodeAction();
 
-public class NodeCollectProfileRequestTest {
-
-    // TODO; fix later
-    @Test
-    public void testStreaming() throws Exception {
-        NodeCollectProfileRequest originalRequest = new NodeCollectProfileRequest("dummyNodeId", UUID.randomUUID());
-
-        BytesStreamOutput out = new BytesStreamOutput();
-        originalRequest.writeTo(out);
-
-        StreamInput in = out.bytes().streamInput();
-
-        NodeCollectProfileRequest streamed = new NodeCollectProfileRequest(in);
-
-        assertThat(originalRequest.jobId(), is(streamed.jobId()));
+    private CollectProfileNodeAction() {
+        super(NAME);
     }
-
 }
