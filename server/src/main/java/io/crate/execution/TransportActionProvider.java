@@ -26,7 +26,6 @@ import org.elasticsearch.common.inject.Inject;
 import org.elasticsearch.common.inject.Provider;
 
 import io.crate.execution.engine.fetch.TransportFetchNodeAction;
-import io.crate.execution.jobs.transport.TransportJobAction;
 import io.crate.planner.DependencyCarrier;
 
 /**
@@ -37,17 +36,10 @@ import io.crate.planner.DependencyCarrier;
 public class TransportActionProvider {
 
     private final Provider<TransportFetchNodeAction> transportFetchNodeActionProvider;
-    private final Provider<TransportJobAction> transportJobInitActionProvider;
 
     @Inject
-    public TransportActionProvider(Provider<TransportFetchNodeAction> transportFetchNodeActionProvider,
-                                   Provider<TransportJobAction> transportJobInitActionProvider) {
+    public TransportActionProvider(Provider<TransportFetchNodeAction> transportFetchNodeActionProvider) {
         this.transportFetchNodeActionProvider = transportFetchNodeActionProvider;
-        this.transportJobInitActionProvider = transportJobInitActionProvider;
-    }
-
-    public TransportJobAction transportJobInitAction() {
-        return transportJobInitActionProvider.get();
     }
 
     public TransportFetchNodeAction transportFetchNodeAction() {

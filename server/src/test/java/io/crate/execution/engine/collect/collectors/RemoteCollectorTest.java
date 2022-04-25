@@ -59,7 +59,6 @@ import java.util.concurrent.atomic.AtomicInteger;
 import static io.crate.testing.TestingHelpers.createReference;
 import static org.hamcrest.Matchers.is;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
@@ -111,7 +110,7 @@ public class RemoteCollectorTest extends CrateDummyClusterServiceUnitTest {
             new SessionSettings("dummyUser", SearchPath.createSearchPathFrom("dummySchema")),
             "localNode",
             "remoteNode",
-            transportJobAction,
+            transportJobAction::doExecute,
             transportKillJobsNodeAction::doExecute,
             Runnable::run,
             tasksService,
@@ -126,7 +125,7 @@ public class RemoteCollectorTest extends CrateDummyClusterServiceUnitTest {
         remoteCollector.kill(new InterruptedException("KILLED"));
         remoteCollector.doCollect();
 
-        verify(transportJobAction, times(0)).execute(eq("remoteNode"), any(JobRequest.class), any(ActionListener.class));
+        verify(transportJobAction, times(0)).doExecute(any(JobRequest.class), any(ActionListener.class));
 
         expectedException.expect(InterruptedException.class);
         consumer.getResult();
@@ -139,7 +138,7 @@ public class RemoteCollectorTest extends CrateDummyClusterServiceUnitTest {
         remoteCollector.kill(new InterruptedException());
         remoteCollector.createRemoteContext();
 
-        verify(transportJobAction, times(0)).execute(eq("remoteNode"), any(JobRequest.class), any(ActionListener.class));
+        verify(transportJobAction, times(0)).doExecute(any(JobRequest.class), any(ActionListener.class));
         expectedException.expect(JobKilledException.class);
         consumer.getResult();
     }
@@ -147,7 +146,9 @@ public class RemoteCollectorTest extends CrateDummyClusterServiceUnitTest {
     @Test
     public void testKillRequestsAreMadeIfCollectorIsKilledAfterRemoteContextCreation() throws Exception {
         remoteCollector.doCollect();
-        verify(transportJobAction, times(1)).execute(eq("remoteNode"), any(JobRequest.class), listenerCaptor.capture());
+        ArgumentCaptor<JobRequest> argumentCaptor = ArgumentCaptor.forClass(JobRequest.class);
+        verify(transportJobAction, times(1)).doExecute(argumentCaptor.capture(), listenerCaptor.capture());
+        assertThat(argumentCaptor.getValue().nodeId(), is("remoteNode"));
 
         remoteCollector.kill(new InterruptedException());
 

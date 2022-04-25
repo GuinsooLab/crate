@@ -127,6 +127,8 @@ import io.crate.execution.jobs.kill.KillJobsNodeAction;
 import io.crate.execution.jobs.kill.TransportKillAllNodeAction;
 import io.crate.execution.jobs.kill.TransportKillJobsNodeAction;
 import io.crate.replication.logical.action.DropSubscriptionAction;
+import io.crate.execution.jobs.transport.JobAction;
+import io.crate.execution.jobs.transport.TransportJobAction;
 import io.crate.replication.logical.action.GetFileChunkAction;
 import io.crate.replication.logical.action.GetStoreMetadataAction;
 import io.crate.replication.logical.action.PublicationsStateAction;
@@ -209,6 +211,7 @@ public class ActionModule extends AbstractModule {
         actions.register(CollectProfileNodeAction.INSTANCE, TransportCollectProfileNodeAction.class);
         actions.register(DecommissionNodeAction.INSTANCE, TransportDecommissionNodeAction.class);
         actions.register(DistributedResultAction.INSTANCE, TransportDistributedResultAction.class);
+        actions.register(JobAction.INSTANCE, TransportJobAction.class);
 
         actionPlugins.stream().flatMap(p -> p.getActions().stream()).forEach(actions::register);
 

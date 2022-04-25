@@ -34,7 +34,6 @@ import io.crate.execution.ddl.views.TransportCreateViewAction;
 import io.crate.execution.ddl.views.TransportDropViewAction;
 import io.crate.execution.engine.fetch.TransportFetchNodeAction;
 import io.crate.execution.jobs.JobSetup;
-import io.crate.execution.jobs.transport.TransportJobAction;
 import io.crate.expression.udf.TransportCreateUserDefinedFunctionAction;
 import io.crate.expression.udf.TransportDropUserDefinedFunctionAction;
 import io.crate.license.TransportSetLicenseAction;
@@ -54,7 +53,6 @@ public class TransportExecutorModule extends AbstractModule {
         bind(JobSetup.class).asEagerSingleton();
         bind(LuceneQueryBuilder.class).asEagerSingleton();
 
-        bind(TransportJobAction.class).asEagerSingleton();
         bind(TransportFetchNodeAction.class).asEagerSingleton();
         bind(TransportCreateTableAction.class).asEagerSingleton();
         bind(TransportRenameTableAction.class).asEagerSingleton();

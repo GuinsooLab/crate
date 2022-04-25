@@ -37,7 +37,6 @@ import io.crate.execution.jobs.kill.KillJobsRequest;
 import io.crate.execution.jobs.kill.KillResponse;
 import io.crate.execution.jobs.transport.JobRequest;
 import io.crate.execution.jobs.transport.JobResponse;
-import io.crate.execution.jobs.transport.TransportJobAction;
 import io.crate.metadata.settings.SessionSettings;
 import io.crate.types.DataTypes;
 import org.apache.logging.log4j.LogManager;
@@ -61,7 +60,7 @@ public class RemoteCollector {
     private final String localNode;
     private final String remoteNode;
     private final Executor executor;
-    private final TransportJobAction transportJobAction;
+    private final BiConsumer<JobRequest, ActionListener<JobResponse>> jobAction;
     private final BiConsumer<KillJobsRequest, ActionListener<KillResponse>> killNodeAction;
     private final TasksService tasksService;
     private final RamAccounting ramAccounting;
@@ -78,7 +77,7 @@ public class RemoteCollector {
                            SessionSettings sessionSettings,
                            String localNode,
                            String remoteNode,
-                           TransportJobAction transportJobAction,
+                           BiConsumer<JobRequest, ActionListener<JobResponse>> jobAction,
                            BiConsumer<KillJobsRequest, ActionListener<KillResponse>> killNodeAction,
                            Executor executor,
                            TasksService tasksService,
@@ -98,7 +97,7 @@ public class RemoteCollector {
         this.enableProfiling = false;
 
         this.scrollRequired = consumer.requiresScroll();
-        this.transportJobAction = transportJobAction;
+        this.jobAction = jobAction;
         this.killNodeAction = killNodeAction;
         this.tasksService = tasksService;
         this.ramAccounting = ramAccounting;
@@ -144,9 +143,9 @@ public class RemoteCollector {
                 context.kill(null);
                 return;
             }
-            transportJobAction.execute(
-                remoteNode,
+            jobAction.accept(
                 new JobRequest(
+                    remoteNode,
                     jobId,
                     sessionSettings,
                     localNode,

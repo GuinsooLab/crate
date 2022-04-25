@@ -34,6 +34,7 @@ import io.crate.execution.support.Transports;
 import io.crate.profile.ProfilingContext;
 import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.action.ActionListenerResponseHandler;
+import org.elasticsearch.action.support.TransportAction;
 import org.elasticsearch.common.inject.Inject;
 import org.elasticsearch.common.inject.Singleton;
 import org.elasticsearch.indices.IndicesService;
@@ -48,9 +49,8 @@ import java.util.concurrent.CompletableFuture;
 import java.util.function.UnaryOperator;
 
 @Singleton
-public class TransportJobAction implements NodeAction<JobRequest, JobResponse> {
+public class TransportJobAction extends TransportAction<JobRequest, JobResponse> implements NodeAction<JobRequest, JobResponse> {
 
-    private static final String ACTION_NAME = "internal:crate:sql/job";
     private static final String EXECUTOR = ThreadPool.Names.SEARCH;
 
     private final IndicesService indicesService;
@@ -64,20 +64,22 @@ public class TransportJobAction implements NodeAction<JobRequest, JobResponse> {
                               Transports transports,
                               TasksService tasksService,
                               JobSetup jobSetup) {
+        super(JobAction.NAME);
         this.indicesService = indicesService;
         this.transports = transports;
         this.tasksService = tasksService;
         this.jobSetup = jobSetup;
         transportService.registerRequestHandler(
-            ACTION_NAME,
+            JobAction.NAME,
             EXECUTOR,
             JobRequest::new,
             new NodeActionRequestHandler<>(this));
     }
 
-    public void execute(String node, final JobRequest request, final ActionListener<JobResponse> listener) {
+    @Override
+    public void doExecute(JobRequest request, ActionListener<JobResponse> listener) {
         transports.sendRequest(
-            ACTION_NAME, node, request, listener, new ActionListenerResponseHandler<>(listener, JobResponse::new));
+            JobAction.NAME, request.nodeId(), request, listener, new ActionListenerResponseHandler<>(listener, JobResponse::new));
     }
 
     @Override

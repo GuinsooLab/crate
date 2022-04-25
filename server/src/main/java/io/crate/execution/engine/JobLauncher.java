@@ -45,7 +45,7 @@ import io.crate.execution.jobs.TasksService;
 import io.crate.execution.jobs.kill.KillJobsRequest;
 import io.crate.execution.jobs.kill.KillResponse;
 import io.crate.execution.jobs.transport.JobRequest;
-import io.crate.execution.jobs.transport.TransportJobAction;
+import io.crate.execution.jobs.transport.JobResponse;
 import io.crate.metadata.TransactionContext;
 import io.crate.profile.ProfilingContext;
 
@@ -106,7 +106,7 @@ import java.util.stream.Collectors;
  **/
 public class JobLauncher {
 
-    private final TransportJobAction transportJobAction;
+    private final BiConsumer<JobRequest, ActionListener<JobResponse>> transportJobAction;
     private final BiConsumer<KillJobsRequest, ActionListener<KillResponse>> killNodeAction;
     private final List<NodeOperationTree> nodeOperationTrees;
     private final UUID jobId;
@@ -124,7 +124,7 @@ public class JobLauncher {
                 JobSetup jobSetup,
                 TasksService tasksService,
                 IndicesService indicesService,
-                TransportJobAction transportJobAction,
+                BiConsumer<JobRequest, ActionListener<JobResponse>> transportJobAction,
                 BiConsumer<KillJobsRequest, ActionListener<KillResponse>> killNodeAction,
                 List<NodeOperationTree> nodeOperationTrees,
                 boolean enableProfiling,
@@ -334,16 +334,18 @@ public class JobLauncher {
         for (Map.Entry<String, Collection<NodeOperation>> entry : operationByServer.entrySet()) {
             String serverNodeId = entry.getKey();
             JobRequest request = new JobRequest(
+                serverNodeId,
                 jobId,
                 txnCtx.sessionSettings(),
                 localNodeId,
                 entry.getValue(),
                 enableProfiling);
             if (hasDirectResponse) {
-                transportJobAction.execute(serverNodeId, request,
-                    BucketForwarder.asActionListener(pageBucketReceivers, bucketIdx, initializationTracker));
+                transportJobAction.accept(
+                    request, BucketForwarder.asActionListener(pageBucketReceivers, bucketIdx, initializationTracker));
             } else {
-                transportJobAction.execute(serverNodeId, request, new FailureOnlyResponseListener(handlerPhases, initializationTracker));
+                transportJobAction.accept(
+                    request, new FailureOnlyResponseListener(handlerPhases, initializationTracker));
             }
             bucketIdx++;
         }

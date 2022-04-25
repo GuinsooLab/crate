@@ -36,7 +36,8 @@ public class JobRequestTest {
 
     @Test
     public void testJobRequestStreaming() throws Exception {
-        JobRequest r1 = new JobRequest(UUID.randomUUID(),
+        JobRequest r1 = new JobRequest("dummyNodeId",
+                                       UUID.randomUUID(),
                                        new SessionSettings("dummyUser",
                                                            SearchPath.createSearchPathFrom("dummySchema")),
                                        "n1",

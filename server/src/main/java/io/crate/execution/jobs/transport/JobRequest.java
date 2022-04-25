@@ -23,6 +23,8 @@ package io.crate.execution.jobs.transport;
 
 import io.crate.execution.dsl.phases.NodeOperation;
 import io.crate.metadata.settings.SessionSettings;
+
+import org.elasticsearch.Version;
 import org.elasticsearch.common.io.stream.StreamInput;
 import org.elasticsearch.common.io.stream.StreamOutput;
 import org.elasticsearch.transport.TransportRequest;
@@ -34,22 +36,29 @@ import java.util.UUID;
 
 public class JobRequest extends TransportRequest {
 
+    private final String nodeId;
     private final UUID jobId;
     private final SessionSettings sessionSettings;
     private final String coordinatorNodeId;
     private final Collection<? extends NodeOperation> nodeOperations;
     private final boolean enableProfiling;
 
-    public JobRequest(UUID jobId,
+    public JobRequest(String nodeId,
+                      UUID jobId,
                       SessionSettings sessionSettings,
                       String coordinatorNodeId,
                       Collection<? extends NodeOperation> nodeOperations,
                       boolean enableProfiling) {
+        this.nodeId = nodeId;
         this.jobId = jobId;
         this.coordinatorNodeId = coordinatorNodeId;
         this.sessionSettings = sessionSettings;
         this.nodeOperations = nodeOperations;
         this.enableProfiling = enableProfiling;
+    }
+
+    public String nodeId() {
+        return nodeId;
     }
 
     public UUID jobId() {
@@ -87,6 +96,11 @@ public class JobRequest extends TransportRequest {
         enableProfiling = in.readBoolean();
 
         sessionSettings = new SessionSettings(in);
+        if (in.getVersion().onOrAfter(Version.V_4_8_0)) {
+            nodeId = in.readString();
+        } else {
+            nodeId = null;
+        }
     }
 
     @Override
@@ -105,5 +119,6 @@ public class JobRequest extends TransportRequest {
         out.writeBoolean(enableProfiling);
 
         sessionSettings.writeTo(out);
+        out.writeString(nodeId);
     }
 }

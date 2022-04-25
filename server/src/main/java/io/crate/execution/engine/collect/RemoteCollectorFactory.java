@@ -38,6 +38,7 @@ import io.crate.execution.engine.collect.collectors.ShardStateObserver;
 import io.crate.execution.engine.collect.sources.ShardCollectorProviderFactory;
 import io.crate.execution.jobs.TasksService;
 import io.crate.execution.jobs.kill.KillJobsNodeAction;
+import io.crate.execution.jobs.transport.JobAction;
 import io.crate.metadata.Routing;
 import io.crate.planner.distribution.DistributionInfo;
 
@@ -147,7 +148,9 @@ public class RemoteCollectorFactory {
                 collectTask.txnCtx().sessionSettings(),
                 localNodeId,
                 nodeId,
-                transportActionProvider.transportJobInitAction(),
+                (req, listener) -> elasticsearchClient
+                    .execute(JobAction.INSTANCE, req)
+                    .whenComplete(ActionListener.toBiConsumer(listener)),
                 (req, listener) -> elasticsearchClient
                     .execute(KillJobsNodeAction.INSTANCE, req)
                     .whenComplete(ActionListener.toBiConsumer(listener)),
