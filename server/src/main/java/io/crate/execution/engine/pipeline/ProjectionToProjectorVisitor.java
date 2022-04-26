@@ -30,7 +30,6 @@ import io.crate.common.collections.Lists2;
 import io.crate.data.Input;
 import io.crate.data.Projector;
 import io.crate.data.Row;
-import io.crate.execution.TransportActionProvider;
 import io.crate.execution.dml.ShardResponse;
 import io.crate.execution.dml.SysUpdateProjector;
 import io.crate.execution.dml.SysUpdateResultSetProjector;
@@ -151,7 +150,6 @@ public class ProjectionToProjectorVisitor
     private final ThreadPool threadPool;
     private final Settings settings;
     private final ElasticsearchClient elasticsearchClient;
-    private final TransportActionProvider transportActionProvider;
     private final InputFactory inputFactory;
     private final EvaluatingNormalizer normalizer;
     private final Function<RelationName, SysRowUpdater<?>> sysUpdaterGetter;
@@ -171,7 +169,6 @@ public class ProjectionToProjectorVisitor
                                         ThreadPool threadPool,
                                         Settings settings,
                                         ElasticsearchClient elasticsearchClient,
-                                        TransportActionProvider transportActionProvider,
                                         InputFactory inputFactory,
                                         EvaluatingNormalizer normalizer,
                                         Function<RelationName, SysRowUpdater<?>> sysUpdaterGetter,
@@ -186,7 +183,6 @@ public class ProjectionToProjectorVisitor
         this.threadPool = threadPool;
         this.settings = settings;
         this.elasticsearchClient = elasticsearchClient;
-        this.transportActionProvider = transportActionProvider;
         this.inputFactory = inputFactory;
         this.normalizer = normalizer;
         this.sysUpdaterGetter = sysUpdaterGetter;
@@ -204,7 +200,6 @@ public class ProjectionToProjectorVisitor
                                         ThreadPool threadPool,
                                         Settings settings,
                                         ElasticsearchClient elasticsearchClient,
-                                        TransportActionProvider transportActionProvider,
                                         InputFactory inputFactory,
                                         EvaluatingNormalizer normalizer,
                                         Function<RelationName, SysRowUpdater<?>> sysUpdaterGetter,
@@ -216,7 +211,6 @@ public class ProjectionToProjectorVisitor
             threadPool,
             settings,
             elasticsearchClient,
-            transportActionProvider,
             inputFactory,
             normalizer,
             sysUpdaterGetter,

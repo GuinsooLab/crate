@@ -30,7 +30,6 @@ import io.crate.data.CollectingBatchIterator;
 import io.crate.data.CollectingRowConsumer;
 import io.crate.data.Row;
 import io.crate.exceptions.Exceptions;
-import io.crate.execution.TransportActionProvider;
 import io.crate.execution.dsl.phases.RoutedCollectPhase;
 import io.crate.execution.dsl.projection.Projections;
 import io.crate.execution.engine.collect.collectors.RemoteCollector;
@@ -75,7 +74,6 @@ public class RemoteCollectorFactory {
 
     private final ClusterService clusterService;
     private final TasksService tasksService;
-    private final TransportActionProvider transportActionProvider;
     private final ElasticsearchClient elasticsearchClient;
     private final IndicesService indicesService;
     private final Executor searchTp;
@@ -83,13 +81,11 @@ public class RemoteCollectorFactory {
     @Inject
     public RemoteCollectorFactory(ClusterService clusterService,
                                   TasksService tasksService,
-                                  TransportActionProvider transportActionProvider,
                                   Node node,
                                   IndicesService indicesService,
                                   ThreadPool threadPool) {
         this.clusterService = clusterService;
         this.tasksService = tasksService;
-        this.transportActionProvider = transportActionProvider;
         this.elasticsearchClient = node.client();
         this.indicesService = indicesService;
         searchTp = threadPool.executor(ThreadPool.Names.SEARCH);

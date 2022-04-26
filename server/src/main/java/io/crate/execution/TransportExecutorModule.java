@@ -48,7 +48,6 @@ public class TransportExecutorModule extends AbstractModule {
 
     @Override
     protected void configure() {
-        bind(TransportActionProvider.class).asEagerSingleton();
         bind(JobSetup.class).asEagerSingleton();
         bind(LuceneQueryBuilder.class).asEagerSingleton();
 

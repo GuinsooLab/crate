@@ -273,7 +273,6 @@ public class InsertFromValues implements LogicalPlan {
         }
         validatorsCache.clear();
 
-        var actionProvider = dependencies.transportActionProvider();
         createIndices(
             dependencies.client(),
             shardedRequests.itemsByMissingIndex().keySet(),
@@ -425,7 +424,6 @@ public class InsertFromValues implements LogicalPlan {
         }
         validatorsCache.clear();
 
-        var actionProvider = dependencies.transportActionProvider();
         createIndices(
             dependencies.client(),
             shardedRequests.itemsByMissingIndex().keySet(),
