@@ -65,6 +65,7 @@ import io.crate.execution.engine.collect.CollectExpression;
 import io.crate.execution.engine.collect.NestableCollectExpression;
 import io.crate.execution.engine.export.FileOutputFactory;
 import io.crate.execution.engine.export.FileWriterProjector;
+import io.crate.execution.engine.fetch.FetchNodeAction;
 import io.crate.execution.engine.fetch.FetchProjector;
 import io.crate.execution.engine.fetch.TransportFetchOperation;
 import io.crate.execution.engine.indexing.ColumnIndexWriterProjector;
@@ -619,7 +620,7 @@ public class ProjectionToProjectorVisitor
             context.txnCtx,
             nodeCtx,
             new TransportFetchOperation(
-                transportActionProvider.transportFetchNodeAction(),
+                (req, listener) -> elasticsearchClient.execute(FetchNodeAction.INSTANCE, req).whenComplete(ActionListener.toBiConsumer(listener)),
                 projection.generateStreamersGroupedByReaderAndNode(),
                 context.jobId,
                 projection.fetchPhaseId(),

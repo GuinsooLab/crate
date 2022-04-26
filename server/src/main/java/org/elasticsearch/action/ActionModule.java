@@ -120,6 +120,8 @@ import io.crate.execution.engine.collect.stats.NodeStatsAction;
 import io.crate.execution.engine.collect.stats.TransportNodeStatsAction;
 import io.crate.execution.engine.distribution.DistributedResultAction;
 import io.crate.execution.engine.distribution.TransportDistributedResultAction;
+import io.crate.execution.engine.fetch.FetchNodeAction;
+import io.crate.execution.engine.fetch.TransportFetchNodeAction;
 import io.crate.execution.engine.profile.CollectProfileNodeAction;
 import io.crate.execution.engine.profile.TransportCollectProfileNodeAction;
 import io.crate.execution.jobs.kill.KillAllNodeAction;
@@ -212,6 +214,7 @@ public class ActionModule extends AbstractModule {
         actions.register(DecommissionNodeAction.INSTANCE, TransportDecommissionNodeAction.class);
         actions.register(DistributedResultAction.INSTANCE, TransportDistributedResultAction.class);
         actions.register(JobAction.INSTANCE, TransportJobAction.class);
+        actions.register(FetchNodeAction.INSTANCE, TransportFetchNodeAction.class);
 
         actionPlugins.stream().flatMap(p -> p.getActions().stream()).forEach(actions::register);
 

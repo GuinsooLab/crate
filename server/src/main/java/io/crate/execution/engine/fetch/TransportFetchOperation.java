@@ -34,25 +34,28 @@ import io.crate.data.Bucket;
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
+import java.util.function.BiConsumer;
 import java.util.function.Function;
 
 import static io.crate.breaker.BlockBasedRamAccounting.MAX_BLOCK_SIZE_IN_BYTES;
 
+import org.elasticsearch.action.ActionListener;
+
 public class TransportFetchOperation implements FetchOperation {
 
     private static final Function<NodeFetchResponse, IntObjectMap<? extends Bucket>> GET_FETCHED = NodeFetchResponse::fetched;
-    private final TransportFetchNodeAction transportFetchNodeAction;
+    private final BiConsumer<NodeFetchRequestResponse, ActionListener<NodeFetchResponse>> fetchNodeAction;
     private final Map<String, ? extends IntObjectMap<Streamer[]>> nodeIdToReaderIdToStreamers;
     private final UUID jobId;
     private final int fetchPhaseId;
     private final RamAccounting ramAccounting;
 
-    public TransportFetchOperation(TransportFetchNodeAction transportFetchNodeAction,
+    public TransportFetchOperation(BiConsumer<NodeFetchRequestResponse, ActionListener<NodeFetchResponse>> fetchNodeAction,
                                    Map<String, ? extends IntObjectMap<Streamer[]>> nodeIdToReaderIdToStreamers,
                                    UUID jobId,
                                    int fetchPhaseId,
                                    RamAccounting ramAccounting) {
-        this.transportFetchNodeAction = transportFetchNodeAction;
+        this.fetchNodeAction = fetchNodeAction;
         this.nodeIdToReaderIdToStreamers = nodeIdToReaderIdToStreamers;
         this.jobId = jobId;
         this.fetchPhaseId = fetchPhaseId;
@@ -64,11 +67,16 @@ public class TransportFetchOperation implements FetchOperation {
                                                                    IntObjectMap<IntArrayList> toFetch,
                                                                    boolean closeContext) {
         FutureActionListener<NodeFetchResponse, IntObjectMap<? extends Bucket>> listener = new FutureActionListener<>(GET_FETCHED);
-        transportFetchNodeAction.execute(
-            nodeId,
-            nodeIdToReaderIdToStreamers.get(nodeId),
-            new NodeFetchRequest(jobId, fetchPhaseId, closeContext, toFetch),
-            ramAccountingForIncomingResponse(ramAccounting, toFetch, closeContext),
+        fetchNodeAction.accept(
+            new NodeFetchRequestResponse(nodeId,
+                                         jobId,
+                                         fetchPhaseId,
+                                         closeContext,
+                                         toFetch,
+                                         nodeIdToReaderIdToStreamers.get(nodeId),
+                                         ramAccountingForIncomingResponse(ramAccounting,
+                                                                          toFetch,
+                                                                          closeContext)),
             listener);
         return listener;
     }

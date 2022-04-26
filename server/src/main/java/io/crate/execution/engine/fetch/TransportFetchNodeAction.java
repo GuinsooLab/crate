@@ -28,6 +28,7 @@ import com.carrotsearch.hppc.IntObjectMap;
 
 import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.action.ActionListenerResponseHandler;
+import org.elasticsearch.action.support.TransportAction;
 import org.elasticsearch.common.inject.Inject;
 import org.elasticsearch.common.inject.Singleton;
 import org.elasticsearch.common.settings.Settings;
@@ -37,8 +38,6 @@ import org.elasticsearch.indices.breaker.HierarchyCircuitBreakerService;
 import org.elasticsearch.threadpool.ThreadPool;
 import org.elasticsearch.transport.TransportService;
 
-import io.crate.Streamer;
-import io.crate.breaker.RamAccounting;
 import io.crate.execution.engine.collect.stats.JobsLogs;
 import io.crate.execution.engine.distribution.StreamBucket;
 import io.crate.execution.jobs.TasksService;
@@ -47,9 +46,9 @@ import io.crate.execution.support.NodeActionRequestHandler;
 import io.crate.execution.support.Transports;
 
 @Singleton
-public class TransportFetchNodeAction implements NodeAction<NodeFetchRequest, NodeFetchResponse> {
+public class TransportFetchNodeAction extends TransportAction<NodeFetchRequestResponse, NodeFetchResponse>
+    implements NodeAction<NodeFetchRequestResponse.NodeFetchRequest, NodeFetchResponse> {
 
-    private static final String TRANSPORT_ACTION = "internal:crate:sql/node/fetch";
     private static final String EXECUTOR_NAME = ThreadPool.Names.SEARCH;
 
     private final Transports transports;
@@ -63,6 +62,7 @@ public class TransportFetchNodeAction implements NodeAction<NodeFetchRequest, No
                                     JobsLogs jobsLogs,
                                     TasksService tasksService,
                                     CircuitBreakerService circuitBreakerService) {
+        super(FetchNodeAction.NAME);
         this.transports = transports;
         this.nodeFetchOperation = new NodeFetchOperation(
             (ThreadPoolExecutor) threadPool.executor(ThreadPool.Names.SEARCH),
@@ -73,7 +73,7 @@ public class TransportFetchNodeAction implements NodeAction<NodeFetchRequest, No
         );
 
         transportService.registerRequestHandler(
-            TRANSPORT_ACTION,
+            FetchNodeAction.NAME,
             EXECUTOR_NAME,
             // force execution because this handler might receive empty close requests which
             // need to be processed to not leak the FetchTask.
@@ -81,22 +81,20 @@ public class TransportFetchNodeAction implements NodeAction<NodeFetchRequest, No
             // If the threadPool is overloaded the query phase would fail first.
             true,
             false,
-            NodeFetchRequest::new,
+            NodeFetchRequestResponse.NodeFetchRequest::new,
             new NodeActionRequestHandler<>(this)
         );
     }
 
-    public void execute(String targetNode,
-                        final IntObjectMap<Streamer[]> streamers,
-                        final NodeFetchRequest request,
-                        RamAccounting ramAccounting,
-                        ActionListener<NodeFetchResponse> listener) {
-        transports.sendRequest(TRANSPORT_ACTION, targetNode, request, listener,
-            new ActionListenerResponseHandler<>(listener, in -> new NodeFetchResponse(in, streamers, ramAccounting)));
+    @Override
+    public void doExecute(NodeFetchRequestResponse reqRespGenerator, ActionListener<NodeFetchResponse> listener) {
+        var req = reqRespGenerator.createRequest();
+        transports.sendRequest(FetchNodeAction.NAME, req.nodeId(), req, listener,
+                               new ActionListenerResponseHandler<>(listener, reqRespGenerator.createResponseReader()));
     }
 
     @Override
-    public CompletableFuture<NodeFetchResponse> nodeOperation(final NodeFetchRequest request) {
+    public CompletableFuture<NodeFetchResponse> nodeOperation(final NodeFetchRequestResponse.NodeFetchRequest request) {
         CompletableFuture<? extends IntObjectMap<StreamBucket>> resultFuture = nodeFetchOperation.fetch(
             request.jobId(),
             request.fetchPhaseId(),

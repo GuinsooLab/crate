@@ -42,14 +42,14 @@ public class NodeFetchRequestTest {
         IntArrayList docIds = new IntArrayList(3);
         toFetch.put(1, docIds);
 
-        NodeFetchRequest orig = new NodeFetchRequest(UUID.randomUUID(), 1, true, toFetch);
+        NodeFetchRequestResponse.NodeFetchRequest orig = new NodeFetchRequestResponse.NodeFetchRequest("dummyNodeId", UUID.randomUUID(), 1, true, toFetch);
 
         BytesStreamOutput out = new BytesStreamOutput();
         orig.writeTo(out);
 
         StreamInput in = out.bytes().streamInput();
 
-        NodeFetchRequest streamed = new NodeFetchRequest(in);
+        NodeFetchRequestResponse.NodeFetchRequest streamed = new NodeFetchRequestResponse.NodeFetchRequest(in);
 
         assertThat(orig.jobId(), is(streamed.jobId()));
         assertThat(orig.fetchPhaseId(), is(streamed.fetchPhaseId()));
