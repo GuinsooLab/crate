@@ -48,8 +48,7 @@ public class TransportKillAllNodeAction extends TransportKillNodeAction<KillAllR
     }
 
     @Override
-    public void doExecute(KillAllRequest request,
-                             ActionListener<KillResponse> listener) {
+    public void doExecute(KillAllRequest request, ActionListener<KillResponse> listener) {
         broadcast(request, listener, List.of());
     }
 }

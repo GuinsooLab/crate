@@ -34,7 +34,6 @@ import io.crate.execution.jobs.PageResultListener;
 import io.crate.execution.jobs.RootTask;
 import io.crate.execution.jobs.TasksService;
 import io.crate.execution.jobs.kill.KillJobsRequest;
-import io.crate.execution.support.NodeAction;
 import io.crate.execution.support.NodeActionRequestHandler;
 import io.crate.execution.support.Transports;
 import org.apache.logging.log4j.LogManager;
@@ -60,8 +59,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.function.BiConsumer;
 
 
-public class TransportDistributedResultAction extends TransportAction<DistributedResultRequest, DistributedResultResponse>
-    implements NodeAction<DistributedResultRequest, DistributedResultResponse> {
+public class TransportDistributedResultAction extends TransportAction<DistributedResultRequest, DistributedResultResponse> {
 
     private static final Logger LOGGER = LogManager.getLogger(TransportDistributedResultAction.class);
 
@@ -110,18 +108,16 @@ public class TransportDistributedResultAction extends TransportAction<Distribute
             DistributedResultAction.NAME,
             ThreadPool.Names.SAME, // <- we will dispatch later at the nodeOperation on non failures
             DistributedResultRequest::new,
-            new NodeActionRequestHandler<>(this));
+            new NodeActionRequestHandler<>(this::nodeOperation));
     }
 
     @Override
-    protected void doExecute(DistributedResultRequest request,
-                             ActionListener<DistributedResultResponse> listener) {
+    protected void doExecute(DistributedResultRequest request, ActionListener<DistributedResultResponse> listener) {
         transports.sendRequest(DistributedResultAction.NAME, request.nodeId(), request, listener,
                                new ActionListenerResponseHandler<>(listener, DistributedResultResponse::new));
     }
 
-    @Override
-    public CompletableFuture<DistributedResultResponse> nodeOperation(DistributedResultRequest request) {
+    CompletableFuture<DistributedResultResponse> nodeOperation(DistributedResultRequest request) {
         return nodeOperation(request, null);
     }
 

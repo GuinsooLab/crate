@@ -41,15 +41,11 @@ import org.elasticsearch.transport.TransportService;
 import io.crate.execution.engine.collect.stats.JobsLogs;
 import io.crate.execution.engine.distribution.StreamBucket;
 import io.crate.execution.jobs.TasksService;
-import io.crate.execution.support.NodeAction;
 import io.crate.execution.support.NodeActionRequestHandler;
 import io.crate.execution.support.Transports;
 
 @Singleton
-public class TransportFetchNodeAction extends TransportAction<NodeFetchRequestResponse, NodeFetchResponse>
-    implements NodeAction<NodeFetchRequestResponse.NodeFetchRequest, NodeFetchResponse> {
-
-    private static final String EXECUTOR_NAME = ThreadPool.Names.SEARCH;
+public class TransportFetchNodeAction extends TransportAction<NodeFetchRequestResponse, NodeFetchResponse> {
 
     private final Transports transports;
     private final NodeFetchOperation nodeFetchOperation;
@@ -74,7 +70,7 @@ public class TransportFetchNodeAction extends TransportAction<NodeFetchRequestRe
 
         transportService.registerRequestHandler(
             FetchNodeAction.NAME,
-            EXECUTOR_NAME,
+            ThreadPool.Names.SEARCH,
             // force execution because this handler might receive empty close requests which
             // need to be processed to not leak the FetchTask.
             // This shouldn't cause too much of an issue because fetch requests always happen after a query phase.
@@ -82,7 +78,7 @@ public class TransportFetchNodeAction extends TransportAction<NodeFetchRequestRe
             true,
             false,
             NodeFetchRequestResponse.NodeFetchRequest::new,
-            new NodeActionRequestHandler<>(this)
+            new NodeActionRequestHandler<>(this::nodeOperation)
         );
     }
 
@@ -93,8 +89,7 @@ public class TransportFetchNodeAction extends TransportAction<NodeFetchRequestRe
                                new ActionListenerResponseHandler<>(listener, reqRespGenerator.createResponseReader()));
     }
 
-    @Override
-    public CompletableFuture<NodeFetchResponse> nodeOperation(final NodeFetchRequestResponse.NodeFetchRequest request) {
+    private CompletableFuture<NodeFetchResponse> nodeOperation(final NodeFetchRequestResponse.NodeFetchRequest request) {
         CompletableFuture<? extends IntObjectMap<StreamBucket>> resultFuture = nodeFetchOperation.fetch(
             request.jobId(),
             request.fetchPhaseId(),

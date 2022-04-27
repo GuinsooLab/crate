@@ -22,7 +22,6 @@
 package io.crate.cluster.decommission;
 
 import io.crate.cluster.gracefulstop.DecommissioningService;
-import io.crate.execution.support.NodeAction;
 import io.crate.execution.support.NodeActionRequestHandler;
 import io.crate.execution.support.Transports;
 import org.elasticsearch.action.ActionListener;
@@ -37,10 +36,7 @@ import org.elasticsearch.transport.TransportService;
 import java.util.concurrent.CompletableFuture;
 
 @Singleton
-public class TransportDecommissionNodeAction extends TransportAction<DecommissionNodeRequest, AcknowledgedResponse>
-    implements NodeAction<DecommissionNodeRequest, AcknowledgedResponse> {
-
-    private static final String EXECUTOR = ThreadPool.Names.MANAGEMENT;
+public class TransportDecommissionNodeAction extends TransportAction<DecommissionNodeRequest, AcknowledgedResponse> {
 
     private final DecommissioningService decommissioningService;
     private final Transports transports;
@@ -54,15 +50,14 @@ public class TransportDecommissionNodeAction extends TransportAction<Decommissio
         this.transports = transports;
         transportService.registerRequestHandler(
             DecommissionNodeAction.NAME,
-            EXECUTOR,
+            ThreadPool.Names.MANAGEMENT,
             DecommissionNodeRequest::new,
-            new NodeActionRequestHandler<>(this)
+            new NodeActionRequestHandler<>(this::nodeOperation)
         );
     }
 
     @Override
-    public void doExecute(DecommissionNodeRequest request,
-                             ActionListener<AcknowledgedResponse> listener) {
+    public void doExecute(DecommissionNodeRequest request, ActionListener<AcknowledgedResponse> listener) {
         transports.sendRequest(
             DecommissionNodeAction.NAME,
             request.nodeId(),
@@ -72,8 +67,7 @@ public class TransportDecommissionNodeAction extends TransportAction<Decommissio
         );
     }
 
-    @Override
-    public CompletableFuture<AcknowledgedResponse> nodeOperation(DecommissionNodeRequest request) {
+    private CompletableFuture<AcknowledgedResponse> nodeOperation(DecommissionNodeRequest request) {
         try {
             return decommissioningService.decommission().thenApply(aVoid -> new AcknowledgedResponse(true));
         } catch (Throwable t) {

@@ -23,7 +23,6 @@ package io.crate.execution.jobs.kill;
 
 import io.crate.execution.jobs.TasksService;
 import io.crate.execution.support.MultiActionListener;
-import io.crate.execution.support.NodeAction;
 import io.crate.execution.support.NodeActionRequestHandler;
 
 import org.elasticsearch.action.ActionListener;
@@ -45,10 +44,7 @@ import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
 
-abstract class TransportKillNodeAction<Request extends TransportRequest>
-    extends TransportAction<Request, KillResponse>
-    // TODO: make NodeAction extend TransportAction
-    implements NodeAction<Request, KillResponse>, Writeable.Reader<Request> {
+abstract class TransportKillNodeAction<Request extends TransportRequest> extends TransportAction<Request, KillResponse> implements Writeable.Reader<Request> {
 
     protected final TasksService tasksService;
     protected final ClusterService clusterService;
@@ -71,12 +67,11 @@ abstract class TransportKillNodeAction<Request extends TransportRequest>
             name,
             ThreadPool.Names.GENERIC,
             reader,
-            new NodeActionRequestHandler<>(this));
+            new NodeActionRequestHandler<>(this::nodeOperation));
     }
 
     protected abstract CompletableFuture<Integer> doKill(Request request);
 
-    @Override
     public CompletableFuture<KillResponse> nodeOperation(Request request) {
         return doKill(request).thenApply(KillResponse::new);
     }

@@ -23,7 +23,6 @@ package io.crate.execution.engine.profile;
 
 import io.crate.execution.jobs.RootTask;
 import io.crate.execution.jobs.TasksService;
-import io.crate.execution.support.NodeAction;
 import io.crate.execution.support.NodeActionRequestHandler;
 import io.crate.execution.support.Transports;
 
@@ -52,9 +51,7 @@ import java.util.concurrent.CompletableFuture;
  *
  */
 @Singleton
-public class TransportCollectProfileNodeAction extends TransportAction<NodeCollectProfileRequest, NodeCollectProfileResponse> implements NodeAction<NodeCollectProfileRequest, NodeCollectProfileResponse> {
-
-    private static final String EXECUTOR = ThreadPool.Names.SEARCH;
+public class TransportCollectProfileNodeAction extends TransportAction<NodeCollectProfileRequest, NodeCollectProfileResponse> {
 
     private final Transports transports;
     private final TasksService tasksService;
@@ -69,16 +66,15 @@ public class TransportCollectProfileNodeAction extends TransportAction<NodeColle
 
         transportService.registerRequestHandler(
             CollectProfileNodeAction.NAME,
-            EXECUTOR,
+            ThreadPool.Names.SEARCH,
             true,
             false,
             NodeCollectProfileRequest::new,
-            new NodeActionRequestHandler<>(this)
+            new NodeActionRequestHandler<>(this::nodeOperation)
         );
     }
 
-    @Override
-    public CompletableFuture<NodeCollectProfileResponse> nodeOperation(NodeCollectProfileRequest request) {
+    private CompletableFuture<NodeCollectProfileResponse> nodeOperation(NodeCollectProfileRequest request) {
         return collectExecutionTimesAndFinishContext(request.jobId()).thenApply(NodeCollectProfileResponse::new);
     }
 

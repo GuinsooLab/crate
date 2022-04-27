@@ -54,8 +54,7 @@ public class TransportKillJobsNodeAction extends TransportKillNodeAction<KillJob
     }
 
     @Override
-    public void doExecute(KillJobsRequest request,
-                             ActionListener<KillResponse> listener) {
+    public void doExecute(KillJobsRequest request, ActionListener<KillResponse> listener) {
         broadcast(request, listener, request.excludedNodeIds());
     }
 }

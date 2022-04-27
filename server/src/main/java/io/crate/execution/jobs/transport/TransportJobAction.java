@@ -28,7 +28,6 @@ import io.crate.execution.jobs.JobSetup;
 import io.crate.execution.jobs.RootTask;
 import io.crate.execution.jobs.SharedShardContexts;
 import io.crate.execution.jobs.TasksService;
-import io.crate.execution.support.NodeAction;
 import io.crate.execution.support.NodeActionRequestHandler;
 import io.crate.execution.support.Transports;
 import io.crate.profile.ProfilingContext;
@@ -49,9 +48,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.function.UnaryOperator;
 
 @Singleton
-public class TransportJobAction extends TransportAction<JobRequest, JobResponse> implements NodeAction<JobRequest, JobResponse> {
-
-    private static final String EXECUTOR = ThreadPool.Names.SEARCH;
+public class TransportJobAction extends TransportAction<JobRequest, JobResponse> {
 
     private final IndicesService indicesService;
     private final Transports transports;
@@ -71,9 +68,9 @@ public class TransportJobAction extends TransportAction<JobRequest, JobResponse>
         this.jobSetup = jobSetup;
         transportService.registerRequestHandler(
             JobAction.NAME,
-            EXECUTOR,
+            ThreadPool.Names.SEARCH,
             JobRequest::new,
-            new NodeActionRequestHandler<>(this));
+            new NodeActionRequestHandler<>(this::nodeOperation));
     }
 
     @Override
@@ -82,8 +79,7 @@ public class TransportJobAction extends TransportAction<JobRequest, JobResponse>
             JobAction.NAME, request.nodeId(), request, listener, new ActionListenerResponseHandler<>(listener, JobResponse::new));
     }
 
-    @Override
-    public CompletableFuture<JobResponse> nodeOperation(final JobRequest request) {
+    private CompletableFuture<JobResponse> nodeOperation(final JobRequest request) {
         RootTask.Builder contextBuilder = tasksService.newBuilder(
             request.jobId(),
             request.sessionSettings().userName(),

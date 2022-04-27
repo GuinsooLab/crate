@@ -21,7 +21,6 @@
 
 package io.crate.execution.engine.collect.stats;
 
-import io.crate.execution.support.NodeAction;
 import io.crate.execution.support.NodeActionRequestHandler;
 import io.crate.execution.support.Transports;
 import io.crate.expression.reference.sys.node.NodeStatsContext;
@@ -38,9 +37,7 @@ import org.elasticsearch.transport.TransportService;
 import java.util.concurrent.CompletableFuture;
 
 @Singleton
-public class TransportNodeStatsAction extends TransportAction<NodeStatsRequest, NodeStatsResponse> implements NodeAction<NodeStatsRequest, NodeStatsResponse> {
-
-    private static final String EXECUTOR = ThreadPool.Names.MANAGEMENT;
+public class TransportNodeStatsAction extends TransportAction<NodeStatsRequest, NodeStatsResponse> {
 
     private final NodeStatsContextFieldResolver nodeContextFieldsResolver;
     private final Transports transports;
@@ -54,15 +51,14 @@ public class TransportNodeStatsAction extends TransportAction<NodeStatsRequest, 
         this.transports = transports;
         transportService.registerRequestHandler(
             NodeStatsAction.NAME,
-            EXECUTOR,
+            ThreadPool.Names.MANAGEMENT,
             NodeStatsRequest::new,
-            new NodeActionRequestHandler<>(this)
+            new NodeActionRequestHandler<>(this::nodeOperation)
         );
     }
 
     @Override
-    public void doExecute(NodeStatsRequest request,
-                          ActionListener<NodeStatsResponse> listener) {
+    public void doExecute(NodeStatsRequest request, ActionListener<NodeStatsResponse> listener) {
         TransportRequestOptions options = TransportRequestOptions.builder()
             .withTimeout(request.getTimeout())
             .build();
@@ -77,7 +73,6 @@ public class TransportNodeStatsAction extends TransportAction<NodeStatsRequest, 
         );
     }
 
-    @Override
     public CompletableFuture<NodeStatsResponse> nodeOperation(NodeStatsRequest request) {
         try {
             NodeStatsContext context = nodeContextFieldsResolver.forTopColumnIdents(request.columnIdents());
