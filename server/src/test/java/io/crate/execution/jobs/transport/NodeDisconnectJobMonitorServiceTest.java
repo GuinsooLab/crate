@@ -29,7 +29,6 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.UUID;
 import java.util.concurrent.atomic.AtomicInteger;
-import java.util.function.BiConsumer;
 
 import org.elasticsearch.Version;
 import org.elasticsearch.action.ActionListener;
@@ -49,6 +48,7 @@ import io.crate.execution.jobs.TasksService;
 import io.crate.execution.jobs.kill.KillJobsRequest;
 import io.crate.execution.jobs.kill.KillResponse;
 import io.crate.execution.jobs.kill.TransportKillJobsNodeAction;
+import io.crate.execution.support.NodeActionExecutor;
 import io.crate.test.integration.CrateDummyClusterServiceUnitTest;
 
 public class NodeDisconnectJobMonitorServiceTest extends CrateDummyClusterServiceUnitTest {
@@ -68,7 +68,7 @@ public class NodeDisconnectJobMonitorServiceTest extends CrateDummyClusterServic
             tasksService,
             new NodeLimits(new ClusterSettings(Settings.EMPTY, ClusterSettings.BUILT_IN_CLUSTER_SETTINGS)),
             mock(TransportService.class),
-            mock(BiConsumer.class));
+            mock(NodeActionExecutor.class));
 
         monitorService.onNodeDisconnected(
             new DiscoveryNode(NODE_ID, buildNewFakeTransportAddress(), Version.CURRENT),

@@ -24,7 +24,6 @@ package io.crate.execution.jobs.transport;
 import java.util.Collections;
 import java.util.List;
 import java.util.UUID;
-import java.util.function.BiConsumer;
 import java.util.stream.Collectors;
 
 import org.apache.logging.log4j.LogManager;
@@ -45,6 +44,7 @@ import io.crate.execution.jobs.TasksService;
 import io.crate.execution.jobs.kill.KillJobsNodeAction;
 import io.crate.execution.jobs.kill.KillJobsRequest;
 import io.crate.execution.jobs.kill.KillResponse;
+import io.crate.execution.support.NodeActionExecutor;
 import io.crate.user.User;
 
 /**
@@ -57,7 +57,7 @@ public class NodeDisconnectJobMonitorService extends AbstractLifecycleComponent 
     private final NodeLimits nodeLimits;
     private final TransportService transportService;
 
-    private final BiConsumer<KillJobsRequest, ActionListener<KillResponse>> killNodeAction;
+    private final NodeActionExecutor<KillJobsRequest, KillResponse> killNodeAction;
     private static final Logger LOGGER = LogManager.getLogger(NodeDisconnectJobMonitorService.class);
 
     @Inject
@@ -76,7 +76,7 @@ public class NodeDisconnectJobMonitorService extends AbstractLifecycleComponent 
     NodeDisconnectJobMonitorService(TasksService tasksService,
                                     NodeLimits nodeLimits,
                                     TransportService transportService,
-                                    BiConsumer<KillJobsRequest, ActionListener<KillResponse>> killNodeAction) {
+                                    NodeActionExecutor<KillJobsRequest, KillResponse> killNodeAction) {
         this.tasksService = tasksService;
         this.nodeLimits = nodeLimits;
         this.transportService = transportService;
@@ -146,7 +146,7 @@ public class NodeDisconnectJobMonitorService extends AbstractLifecycleComponent 
             User.CRATE_USER.name(),
             "Participating node=" + deadNode.getName() + " disconnected."
         );
-        killNodeAction.accept(killRequest, new ActionListener<>() {
+        killNodeAction.execute(killRequest, new ActionListener<>() {
             @Override
             public void onResponse(KillResponse killResponse) {
             }

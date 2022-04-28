@@ -25,7 +25,6 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.UUID;
 import java.util.concurrent.Executor;
-import java.util.function.BiConsumer;
 
 import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.cluster.service.ClusterService;
@@ -40,6 +39,7 @@ import io.crate.data.RowConsumer;
 import io.crate.execution.dsl.phases.ExecutionPhases;
 import io.crate.execution.dsl.phases.NodeOperation;
 import io.crate.execution.jobs.PageBucketReceiver;
+import io.crate.execution.support.NodeActionExecutor;
 import io.crate.planner.distribution.DistributionInfo;
 import io.crate.planner.node.StreamerVisitor;
 
@@ -50,7 +50,7 @@ public class DistributingConsumerFactory {
 
     private final ClusterService clusterService;
     private final Executor responseExecutor;
-    private final BiConsumer<DistributedResultRequest, ActionListener<DistributedResultResponse>> distributedResultAction;
+    private final NodeActionExecutor<DistributedResultRequest, DistributedResultResponse> distributedResultAction;
 
     @Inject
     public DistributingConsumerFactory(ClusterService clusterService,

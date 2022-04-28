@@ -22,6 +22,7 @@
 package io.crate.execution.engine;
 
 import io.crate.execution.jobs.kill.KillResponse;
+import io.crate.execution.support.NodeActionExecutor;
 import io.crate.user.User;
 import io.crate.data.BatchIterator;
 import io.crate.data.Row;
@@ -40,7 +41,6 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
-import java.util.function.BiConsumer;
 
 class InterceptingRowConsumer implements RowConsumer {
 
@@ -50,7 +50,7 @@ class InterceptingRowConsumer implements RowConsumer {
     private final UUID jobId;
     private final RowConsumer consumer;
     private final Executor executor;
-    private final BiConsumer<KillJobsRequest, ActionListener<KillResponse>> killNodeAction;
+    private final NodeActionExecutor<KillJobsRequest, KillResponse> killNodeAction;
     private final AtomicBoolean consumerAccepted = new AtomicBoolean(false);
 
     private Throwable failure = null;
@@ -60,7 +60,7 @@ class InterceptingRowConsumer implements RowConsumer {
                             RowConsumer consumer,
                             InitializationTracker jobsInitialized,
                             Executor executor,
-                            BiConsumer<KillJobsRequest, ActionListener<KillResponse>> killNodeAction) {
+                            NodeActionExecutor<KillJobsRequest, KillResponse> killNodeAction) {
         this.jobId = jobId;
         this.consumer = consumer;
         this.executor = executor;
@@ -99,7 +99,7 @@ class InterceptingRowConsumer implements RowConsumer {
                 User.CRATE_USER.name(),
                 "An error was encountered: " + failure
             );
-            killNodeAction.accept(
+            killNodeAction.execute(
                 killRequest,
                 new ActionListener<>() {
                     @Override

@@ -46,10 +46,10 @@ import io.crate.execution.jobs.kill.KillJobsRequest;
 import io.crate.execution.jobs.kill.KillResponse;
 import io.crate.execution.jobs.transport.JobRequest;
 import io.crate.execution.jobs.transport.JobResponse;
+import io.crate.execution.support.NodeActionExecutor;
 import io.crate.metadata.TransactionContext;
 import io.crate.profile.ProfilingContext;
 
-import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.cluster.service.ClusterService;
 import io.crate.common.collections.Tuple;
 import org.elasticsearch.indices.IndicesService;
@@ -64,7 +64,6 @@ import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
-import java.util.function.BiConsumer;
 import java.util.function.UnaryOperator;
 import java.util.stream.Collectors;
 
@@ -106,8 +105,8 @@ import java.util.stream.Collectors;
  **/
 public class JobLauncher {
 
-    private final BiConsumer<JobRequest, ActionListener<JobResponse>> transportJobAction;
-    private final BiConsumer<KillJobsRequest, ActionListener<KillResponse>> killNodeAction;
+    private final NodeActionExecutor<JobRequest, JobResponse> transportJobAction;
+    private final NodeActionExecutor<KillJobsRequest, KillResponse> killNodeAction;
     private final List<NodeOperationTree> nodeOperationTrees;
     private final UUID jobId;
     private final ClusterService clusterService;
@@ -124,8 +123,8 @@ public class JobLauncher {
                 JobSetup jobSetup,
                 TasksService tasksService,
                 IndicesService indicesService,
-                BiConsumer<JobRequest, ActionListener<JobResponse>> transportJobAction,
-                BiConsumer<KillJobsRequest, ActionListener<KillResponse>> killNodeAction,
+                NodeActionExecutor<JobRequest, JobResponse> transportJobAction,
+                NodeActionExecutor<KillJobsRequest, KillResponse> killNodeAction,
                 List<NodeOperationTree> nodeOperationTrees,
                 boolean enableProfiling,
                 Executor executor) {
@@ -341,10 +340,10 @@ public class JobLauncher {
                 entry.getValue(),
                 enableProfiling);
             if (hasDirectResponse) {
-                transportJobAction.accept(
+                transportJobAction.execute(
                     request, BucketForwarder.asActionListener(pageBucketReceivers, bucketIdx, initializationTracker));
             } else {
-                transportJobAction.accept(
+                transportJobAction.execute(
                     request, new FailureOnlyResponseListener(handlerPhases, initializationTracker));
             }
             bucketIdx++;

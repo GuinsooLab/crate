@@ -24,6 +24,7 @@ package io.crate.protocols.postgres;
 import io.crate.action.sql.Session;
 import io.crate.execution.jobs.kill.KillJobsRequest;
 import io.crate.execution.jobs.kill.KillResponse;
+import io.crate.execution.support.NodeActionExecutor;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -33,15 +34,14 @@ import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
-import java.util.function.BiConsumer;
 
 public class PgSessions {
     private static final Logger LOGGER = LogManager.getLogger(PgSessions.class);
 
     private final ConcurrentMap<KeyData, Session> activeSessions;
-    private final BiConsumer<KillJobsRequest, ActionListener<KillResponse>> killNodeAction;
+    private final NodeActionExecutor<KillJobsRequest, KillResponse> killNodeAction;
 
-    public PgSessions(BiConsumer<KillJobsRequest, ActionListener<KillResponse>> killNodeAction) {
+    public PgSessions(NodeActionExecutor<KillJobsRequest, KillResponse> killNodeAction) {
         this.activeSessions = new ConcurrentHashMap<>();
         this.killNodeAction = killNodeAction;
     }
@@ -61,7 +61,7 @@ public class PgSessions {
             String userName = targetSession.sessionContext().sessionUser().name();
             UUID targetJobID = targetSession.getMostRecentJobID();
             if (targetJobID != null) {
-                killNodeAction.accept(
+                killNodeAction.execute(
 
                     new KillJobsRequest(List.of(),
                                         List.of(targetJobID),

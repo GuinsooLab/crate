@@ -37,6 +37,7 @@ import io.crate.execution.jobs.kill.KillJobsRequest;
 import io.crate.execution.jobs.kill.KillResponse;
 import io.crate.execution.jobs.transport.JobRequest;
 import io.crate.execution.jobs.transport.JobResponse;
+import io.crate.execution.support.NodeActionExecutor;
 import io.crate.metadata.settings.SessionSettings;
 import io.crate.types.DataTypes;
 import org.apache.logging.log4j.LogManager;
@@ -48,7 +49,6 @@ import java.util.Collections;
 import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.Executor;
-import java.util.function.BiConsumer;
 
 public class RemoteCollector {
 
@@ -60,8 +60,8 @@ public class RemoteCollector {
     private final String localNode;
     private final String remoteNode;
     private final Executor executor;
-    private final BiConsumer<JobRequest, ActionListener<JobResponse>> jobAction;
-    private final BiConsumer<KillJobsRequest, ActionListener<KillResponse>> killNodeAction;
+    private final NodeActionExecutor<JobRequest, JobResponse> jobAction;
+    private final NodeActionExecutor<KillJobsRequest, KillResponse> killNodeAction;
     private final TasksService tasksService;
     private final RamAccounting ramAccounting;
     private final RowConsumer consumer;
@@ -77,8 +77,8 @@ public class RemoteCollector {
                            SessionSettings sessionSettings,
                            String localNode,
                            String remoteNode,
-                           BiConsumer<JobRequest, ActionListener<JobResponse>> jobAction,
-                           BiConsumer<KillJobsRequest, ActionListener<KillResponse>> killNodeAction,
+                           NodeActionExecutor<JobRequest, JobResponse> jobAction,
+                           NodeActionExecutor<KillJobsRequest, KillResponse> killNodeAction,
                            Executor executor,
                            TasksService tasksService,
                            RamAccounting ramAccounting,
@@ -143,7 +143,7 @@ public class RemoteCollector {
                 context.kill(null);
                 return;
             }
-            jobAction.accept(
+            jobAction.execute(
                 new JobRequest(
                     remoteNode,
                     jobId,
@@ -211,7 +211,7 @@ public class RemoteCollector {
             sessionSettings.userName(),
             null
         );
-        killNodeAction.accept(killRequest, new ActionListener<>() {
+        killNodeAction.execute(killRequest, new ActionListener<>() {
 
                 @Override
                 public void onResponse(KillResponse killResponse) {

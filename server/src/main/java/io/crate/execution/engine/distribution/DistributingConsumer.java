@@ -27,6 +27,7 @@ import io.crate.data.Paging;
 import io.crate.data.Row;
 import io.crate.data.RowConsumer;
 import io.crate.exceptions.SQLExceptions;
+import io.crate.execution.support.NodeActionExecutor;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -41,7 +42,6 @@ import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
 import java.util.concurrent.atomic.AtomicInteger;
-import java.util.function.BiConsumer;
 
 /**
  * Consumer which sends requests to downstream nodes every {@link #pageSize} rows.
@@ -60,7 +60,7 @@ public class DistributingConsumer implements RowConsumer {
     private final int targetPhaseId;
     private final byte inputId;
     private final int bucketIdx;
-    private final BiConsumer<DistributedResultRequest, ActionListener<DistributedResultResponse>> distributedResultAction;
+    private final NodeActionExecutor<DistributedResultRequest, DistributedResultResponse> distributedResultAction;
     private final int pageSize;
     private final StreamBucket[] buckets;
     private final List<Downstream> downstreams;
@@ -79,7 +79,7 @@ public class DistributingConsumer implements RowConsumer {
                                 byte inputId,
                                 int bucketIdx,
                                 Collection<String> downstreamNodeIds,
-                                BiConsumer<DistributedResultRequest, ActionListener<DistributedResultResponse>> distributedResultAction,
+                                NodeActionExecutor<DistributedResultRequest, DistributedResultResponse> distributedResultAction,
                                 int pageSize) {
         this.traceEnabled = LOGGER.isTraceEnabled();
         this.responseExecutor = responseExecutor;
@@ -151,7 +151,7 @@ public class DistributingConsumer implements RowConsumer {
                     LOGGER.trace("forwardFailure targetNode={} jobId={} targetPhase={}/{} bucket={} failure={}",
                                  downstream.nodeId, jobId, targetPhaseId, inputId, bucketIdx, failure);
                 }
-                distributedResultAction.accept(
+                distributedResultAction.execute(
                     new DistributedResultRequest(downstream.nodeId,
                                                  jobId,
                                                  targetPhaseId,
@@ -209,7 +209,7 @@ public class DistributingConsumer implements RowConsumer {
                 LOGGER.trace("forwardResults targetNode={} jobId={} targetPhase={}/{} bucket={} isLast={}",
                     downstream.nodeId, jobId, targetPhaseId, inputId, bucketIdx, isLast);
             }
-            distributedResultAction.accept(
+            distributedResultAction.execute(
                 new DistributedResultRequest(downstream.nodeId,
                                              jobId,
                                              targetPhaseId,

@@ -30,6 +30,7 @@ import io.crate.execution.jobs.kill.KillResponse;
 import io.crate.execution.jobs.transport.JobAction;
 import io.crate.execution.jobs.transport.JobRequest;
 import io.crate.execution.jobs.transport.JobResponse;
+import io.crate.execution.support.NodeActionExecutor;
 
 import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.cluster.service.ClusterService;
@@ -42,7 +43,6 @@ import org.elasticsearch.threadpool.ThreadPool;
 import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.Executor;
-import java.util.function.BiConsumer;
 
 @Singleton
 public final class PhasesTaskFactory {
@@ -51,8 +51,8 @@ public final class PhasesTaskFactory {
     private final JobSetup jobSetup;
     private final TasksService tasksService;
     private final IndicesService indicesService;
-    private final BiConsumer<JobRequest, ActionListener<JobResponse>> jobAction;
-    private final BiConsumer<KillJobsRequest, ActionListener<KillResponse>> killNodeAction;
+    private final NodeActionExecutor<JobRequest, JobResponse> jobAction;
+    private final NodeActionExecutor<KillJobsRequest, KillResponse> killNodeAction;
     private final Executor searchExecutor;
 
     @Inject

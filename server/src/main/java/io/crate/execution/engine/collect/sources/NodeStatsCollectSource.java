@@ -33,6 +33,7 @@ import io.crate.execution.engine.collect.collectors.NodeStats;
 import io.crate.execution.engine.collect.stats.NodeStatsAction;
 import io.crate.execution.engine.collect.stats.NodeStatsRequest;
 import io.crate.execution.engine.collect.stats.NodeStatsResponse;
+import io.crate.execution.support.NodeActionExecutor;
 import io.crate.expression.InputFactory;
 import io.crate.expression.eval.EvaluatingNormalizer;
 import io.crate.expression.reference.sys.node.NodeStatsContext;
@@ -59,12 +60,11 @@ import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
-import java.util.function.BiConsumer;
 
 @Singleton
 public class NodeStatsCollectSource implements CollectSource {
 
-    private final BiConsumer<NodeStatsRequest, ActionListener<NodeStatsResponse>> nodeStatsAction;
+    private final NodeActionExecutor<NodeStatsRequest, NodeStatsResponse> nodeStatsAction;
     private final ClusterService clusterService;
     private final NodeContext nodeCtx;
     private final InputFactory inputFactory;

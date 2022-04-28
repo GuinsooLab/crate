@@ -38,6 +38,7 @@ import io.crate.execution.engine.profile.CollectProfileNodeAction;
 import io.crate.execution.engine.profile.NodeCollectProfileRequest;
 import io.crate.execution.engine.profile.NodeCollectProfileResponse;
 import io.crate.execution.engine.profile.TransportCollectProfileOperation;
+import io.crate.execution.support.NodeActionExecutor;
 import io.crate.execution.support.OneRowActionListener;
 import io.crate.planner.DependencyCarrier;
 import io.crate.planner.ExecutionPlan;
@@ -185,7 +186,7 @@ public class ExplainPlan implements Plan {
     }
 
     private TransportCollectProfileOperation getCollectOperation(DependencyCarrier executor, UUID jobId) {
-        BiConsumer<NodeCollectProfileRequest, ActionListener<NodeCollectProfileResponse>> nodeAction =
+        NodeActionExecutor<NodeCollectProfileRequest, NodeCollectProfileResponse> nodeAction =
             (req, listener) -> executor.client()
                 .execute(CollectProfileNodeAction.INSTANCE, req)
                 .whenComplete(ActionListener.toBiConsumer(listener));

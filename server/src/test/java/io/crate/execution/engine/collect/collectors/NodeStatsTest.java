@@ -27,6 +27,7 @@ import io.crate.execution.dsl.phases.RoutedCollectPhase;
 import io.crate.execution.engine.collect.stats.NodeStatsRequest;
 import io.crate.execution.engine.collect.stats.NodeStatsResponse;
 import io.crate.execution.engine.collect.stats.TransportNodeStatsAction;
+import io.crate.execution.support.NodeActionExecutor;
 import io.crate.expression.InputFactory;
 import io.crate.expression.symbol.Literal;
 import io.crate.expression.symbol.Symbol;
@@ -53,7 +54,6 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
-import java.util.function.BiConsumer;
 import java.util.stream.Collectors;
 
 import static io.crate.testing.DiscoveryNodes.newNode;
@@ -71,7 +71,7 @@ public class NodeStatsTest extends ESTestCase {
     private RoutedCollectPhase collectPhase;
     private Collection<DiscoveryNode> nodes = new HashSet<>();
     private TransportNodeStatsAction nodeStatsAction;
-    private BiConsumer<NodeStatsRequest, ActionListener<NodeStatsResponse>> nodeStatesExecutor;
+    private NodeActionExecutor<NodeStatsRequest, NodeStatsResponse> nodeStatesExecutor;
     private TransactionContext txnCtx = CoordinatorTxnCtx.systemTransactionContext();
 
     private Reference idRef;

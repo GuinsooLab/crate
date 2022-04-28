@@ -29,6 +29,7 @@ import io.crate.execution.dsl.phases.RoutedCollectPhase;
 import io.crate.execution.engine.collect.RowsTransformer;
 import io.crate.execution.engine.collect.stats.NodeStatsRequest;
 import io.crate.execution.engine.collect.stats.NodeStatsResponse;
+import io.crate.execution.support.NodeActionExecutor;
 import io.crate.expression.InputFactory;
 import io.crate.expression.reference.StaticTableReferenceResolver;
 import io.crate.expression.reference.sys.node.NodeStatsContext;
@@ -53,7 +54,6 @@ import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicInteger;
-import java.util.function.BiConsumer;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
 
@@ -63,7 +63,7 @@ import java.util.function.Supplier;
  */
 public final class NodeStats {
 
-    public static BatchIterator<Row> newInstance(BiConsumer<NodeStatsRequest, ActionListener<NodeStatsResponse>> nodeStatesAction,
+    public static BatchIterator<Row> newInstance(NodeActionExecutor<NodeStatsRequest, NodeStatsResponse> nodeStatesAction,
                                                  RoutedCollectPhase collectPhase,
                                                  Collection<DiscoveryNode> nodes,
                                                  TransactionContext txnCtx,
@@ -86,14 +86,14 @@ public final class NodeStats {
     private static final class LoadNodeStats implements Supplier<CompletableFuture<? extends Iterable<? extends Row>>> {
 
         private static final TimeValue REQUEST_TIMEOUT = TimeValue.timeValueMillis(3000L);
-        private final BiConsumer<NodeStatsRequest, ActionListener<NodeStatsResponse>> nodeStatsAction;
+        private final NodeActionExecutor<NodeStatsRequest, NodeStatsResponse> nodeStatsAction;
         private final RoutedCollectPhase collectPhase;
         private final Collection<DiscoveryNode> nodes;
         private final TransactionContext txnCtx;
         private final InputFactory inputFactory;
         private final Map<ColumnIdent, RowCollectExpressionFactory<NodeStatsContext>> expressions;
 
-        LoadNodeStats(BiConsumer<NodeStatsRequest, ActionListener<NodeStatsResponse>> nodeStatsAction,
+        LoadNodeStats(NodeActionExecutor<NodeStatsRequest, NodeStatsResponse> nodeStatsAction,
                       RoutedCollectPhase collectPhase,
                       Collection<DiscoveryNode> nodes,
                       TransactionContext txnCtx,
@@ -137,7 +137,7 @@ public final class NodeStats {
             for (final DiscoveryNode node : nodes) {
                 final String nodeId = node.getId();
                 NodeStatsRequest request = new NodeStatsRequest(nodeId, REQUEST_TIMEOUT, toCollect);
-                nodeStatsAction.accept(request, new ActionListener<>() {
+                nodeStatsAction.execute(request, new ActionListener<>() {
                     @Override
                     public void onResponse(NodeStatsResponse response) {
                         synchronized (rows) {

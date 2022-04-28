@@ -23,7 +23,6 @@ package io.crate.planner.node.management;
 
 import java.util.List;
 import java.util.UUID;
-import java.util.function.BiConsumer;
 
 import javax.annotation.Nullable;
 
@@ -39,6 +38,7 @@ import io.crate.execution.jobs.kill.KillAllRequest;
 import io.crate.execution.jobs.kill.KillJobsNodeAction;
 import io.crate.execution.jobs.kill.KillJobsRequest;
 import io.crate.execution.jobs.kill.KillResponse;
+import io.crate.execution.support.NodeActionExecutor;
 import io.crate.execution.support.OneRowActionListener;
 import io.crate.expression.symbol.Symbol;
 import io.crate.metadata.CoordinatorTxnCtx;
@@ -115,18 +115,18 @@ public class KillPlan implements Plan {
     @VisibleForTesting
     void execute(@Nullable UUID jobId,
                  String userName,
-                 BiConsumer<KillJobsRequest, ActionListener<KillResponse>> killJobsNodeAction,
-                 BiConsumer<KillAllRequest, ActionListener<KillResponse>> killAllNodeAction,
+                 NodeActionExecutor<KillJobsRequest, KillResponse> killJobsNodeAction,
+                 NodeActionExecutor<KillAllRequest, KillResponse> killAllNodeAction,
                  RowConsumer consumer) {
         if (jobId != null) {
-            killJobsNodeAction.accept(new KillJobsRequest(List.of(),
+            killJobsNodeAction.execute(new KillJobsRequest(List.of(),
                                                           List.of(jobId),
                                                           userName,
                                                           "KILL invoked by user: " + userName),
                                       new OneRowActionListener<>(consumer,
                                                                  killResponse -> new Row1(killResponse.numKilled())));
         } else {
-            killAllNodeAction.accept(new KillAllRequest(userName),
+            killAllNodeAction.execute(new KillAllRequest(userName),
                                      new OneRowActionListener<>(consumer,
                                                                 killResponse -> new Row1(killResponse.numKilled())));
         }

@@ -23,6 +23,7 @@ package io.crate.execution.engine.distribution;
 
 import io.crate.execution.jobs.kill.KillJobsNodeAction;
 import io.crate.execution.jobs.kill.KillResponse;
+import io.crate.execution.support.NodeActionExecutor;
 import io.crate.user.User;
 import io.crate.common.annotations.VisibleForTesting;
 import io.crate.common.unit.TimeValue;
@@ -56,7 +57,6 @@ import java.util.Locale;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
-import java.util.function.BiConsumer;
 
 
 public class TransportDistributedResultAction extends TransportAction<DistributedResultRequest, DistributedResultResponse> {
@@ -67,7 +67,7 @@ public class TransportDistributedResultAction extends TransportAction<Distribute
     private final TasksService tasksService;
     private final ScheduledExecutorService scheduler;
     private final ClusterService clusterService;
-    private final BiConsumer<KillJobsRequest, ActionListener<KillResponse>> killNodeAction;
+    private final NodeActionExecutor<KillJobsRequest, KillResponse> killNodeAction;
     private final BackoffPolicy backoffPolicy;
 
     @Inject
@@ -94,7 +94,7 @@ public class TransportDistributedResultAction extends TransportAction<Distribute
                                      ThreadPool threadPool,
                                      TransportService transportService,
                                      ClusterService clusterService,
-                                     BiConsumer<KillJobsRequest, ActionListener<KillResponse>> killNodeAction,
+                                     NodeActionExecutor<KillJobsRequest, KillResponse> killNodeAction,
                                      BackoffPolicy backoffPolicy) {
         super(DistributedResultAction.NAME);
         this.transports = transports;
@@ -198,7 +198,7 @@ public class TransportDistributedResultAction extends TransportAction<Distribute
                 "Received data for job=" + request.jobId() + " but there is no job context present. " +
                 "This can happen due to bad network latency or if individual nodes are unresponsive due to high load"
             );
-            killNodeAction.accept(killRequest, new ActionListener<>() {
+            killNodeAction.execute(killRequest, new ActionListener<>() {
                 @Override
                 public void onResponse(KillResponse killResponse) {
                 }

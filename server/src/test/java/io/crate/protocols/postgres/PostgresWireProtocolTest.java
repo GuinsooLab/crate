@@ -43,7 +43,6 @@ import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.function.BiConsumer;
 
 import javax.annotation.Nullable;
 
@@ -69,6 +68,8 @@ import io.crate.auth.AuthenticationMethod;
 import io.crate.exceptions.JobKilledException;
 import io.crate.execution.engine.collect.stats.JobsLogs;
 import io.crate.execution.jobs.kill.KillJobsRequest;
+import io.crate.execution.jobs.kill.KillResponse;
+import io.crate.execution.support.NodeActionExecutor;
 import io.crate.planner.DependencyCarrier;
 import io.crate.protocols.postgres.types.PGTypes;
 import io.crate.test.integration.CrateDummyClusterServiceUnitTest;
@@ -144,7 +145,7 @@ public class PostgresWireProtocolTest extends CrateDummyClusterServiceUnitTest {
                 chPipeline -> {},
                 new AlwaysOKAuthentication(userName -> null),
                 null,
-                new PgSessions(mock(BiConsumer.class)),
+                new PgSessions(mock(NodeActionExecutor.class)),
                 keyData);
         channel = new EmbeddedChannel(ctx.decoder, ctx.handler);
 
@@ -189,7 +190,7 @@ public class PostgresWireProtocolTest extends CrateDummyClusterServiceUnitTest {
                 chPipeline -> {},
                 new AlwaysOKAuthentication(userName -> User.CRATE_USER),
                 null,
-                new PgSessions(mock(BiConsumer.class)),
+                new PgSessions(mock(NodeActionExecutor.class)),
                 keyData);
         AtomicBoolean flushed = new AtomicBoolean(false);
         channel = new EmbeddedChannel(ctx.decoder, ctx.handler) {
@@ -220,7 +221,7 @@ public class PostgresWireProtocolTest extends CrateDummyClusterServiceUnitTest {
                 chPipeline -> {},
                 new AlwaysOKAuthentication(userName -> User.CRATE_USER),
                 null,
-                new PgSessions(mock(BiConsumer.class)),
+                new PgSessions(mock(NodeActionExecutor.class)),
                 keyData);
         channel = new EmbeddedChannel(ctx.decoder, ctx.handler);
 
@@ -248,7 +249,7 @@ public class PostgresWireProtocolTest extends CrateDummyClusterServiceUnitTest {
                 chPipeline -> {},
                 new AlwaysOKAuthentication(userName -> User.CRATE_USER),
                 null,
-                new PgSessions(mock(BiConsumer.class)),
+                new PgSessions(mock(NodeActionExecutor.class)),
                 keyData);
 
         channel = new EmbeddedChannel(ctx.decoder, ctx.handler);
@@ -309,7 +310,7 @@ public class PostgresWireProtocolTest extends CrateDummyClusterServiceUnitTest {
                 chPipeline -> {},
                 new AlwaysOKAuthentication(userName -> User.CRATE_USER),
                 null,
-                new PgSessions(mock(BiConsumer.class)),
+                new PgSessions(mock(NodeActionExecutor.class)),
                 keyData);
 
         channel = new EmbeddedChannel(ctx.decoder, ctx.handler);
@@ -374,7 +375,7 @@ public class PostgresWireProtocolTest extends CrateDummyClusterServiceUnitTest {
                 chPipeline -> {},
                 new AlwaysOKAuthentication(userName -> User.CRATE_USER),
                 null,
-                new PgSessions(mock(BiConsumer.class)),
+                new PgSessions(mock(NodeActionExecutor.class)),
                 keyData);
 
         channel = new EmbeddedChannel(ctx.decoder, ctx.handler);
@@ -433,7 +434,7 @@ public class PostgresWireProtocolTest extends CrateDummyClusterServiceUnitTest {
                 chPipeline -> {},
                 new AlwaysOKAuthentication(userName -> null),
                 () -> null,
-                new PgSessions(mock(BiConsumer.class)),
+                new PgSessions(mock(NodeActionExecutor.class)),
                 keyData);
 
         channel = new EmbeddedChannel(ctx.decoder, ctx.handler);
@@ -476,7 +477,7 @@ public class PostgresWireProtocolTest extends CrateDummyClusterServiceUnitTest {
                     return null;
                 }
             },
-            new PgSessions(mock(BiConsumer.class)),
+            new PgSessions(mock(NodeActionExecutor.class)),
             keyData
         );
 
@@ -504,7 +505,7 @@ public class PostgresWireProtocolTest extends CrateDummyClusterServiceUnitTest {
             chPipeline -> {},
             new AlwaysOKAuthentication(userName -> User.CRATE_USER),
             null,
-            new PgSessions(mock(BiConsumer.class)),
+            new PgSessions(mock(NodeActionExecutor.class)),
                 keyData);
         channel = new EmbeddedChannel(ctx.decoder, ctx.handler);
 
@@ -556,7 +557,7 @@ public class PostgresWireProtocolTest extends CrateDummyClusterServiceUnitTest {
                     }
                 },
                 null,
-                new PgSessions(mock(BiConsumer.class)),
+                new PgSessions(mock(NodeActionExecutor.class)),
                 keyData);
         channel = new EmbeddedChannel(ctx.decoder, ctx.handler);
 
@@ -596,7 +597,7 @@ public class PostgresWireProtocolTest extends CrateDummyClusterServiceUnitTest {
                 chPipeline -> {},
                 new AlwaysOKAuthentication(userName -> User.CRATE_USER),
                 null,
-                new PgSessions(mock(BiConsumer.class)),
+                new PgSessions(mock(NodeActionExecutor.class)),
                 keyData);
         channel = new EmbeddedChannel(ctx.decoder, ctx.handler);
 
@@ -640,7 +641,7 @@ public class PostgresWireProtocolTest extends CrateDummyClusterServiceUnitTest {
                 chPipeline -> {},
                 new AlwaysOKAuthentication(userName -> User.CRATE_USER),
                 null,
-                new PgSessions(mock(BiConsumer.class)),
+                new PgSessions(mock(NodeActionExecutor.class)),
                 keyData);
 
         channel = new EmbeddedChannel(ctx.decoder, ctx.handler);
@@ -652,7 +653,7 @@ public class PostgresWireProtocolTest extends CrateDummyClusterServiceUnitTest {
 
     @Test
     public void testHandleCancelRequestBody() {
-        BiConsumer mockedKillAction = mock(BiConsumer.class);
+        NodeActionExecutor<KillJobsRequest, KillResponse> mockedKillAction = mock(NodeActionExecutor.class);
 
         UUID targetJobID = UUIDs.dirtyUUID();
         Session targetSession = mock(Session.class);
@@ -678,7 +679,7 @@ public class PostgresWireProtocolTest extends CrateDummyClusterServiceUnitTest {
 
         // kill invoked with the target jobID
         ArgumentCaptor<KillJobsRequest> arg = ArgumentCaptor.forClass(KillJobsRequest.class);
-        verify(mockedKillAction).accept(arg.capture(), any(ActionListener.class));
+        verify(mockedKillAction).execute(arg.capture(), any(ActionListener.class));
         KillJobsRequest capturedKillJobRequest = arg.getValue();
         assertThat(capturedKillJobRequest.toKill(), is(List.of(targetJobID)));
 
@@ -711,7 +712,7 @@ public class PostgresWireProtocolTest extends CrateDummyClusterServiceUnitTest {
                 chPipeline -> {},
                 new AlwaysOKAuthentication(userName -> User.CRATE_USER),
                 null,
-                new PgSessions(mock(BiConsumer.class)),
+                new PgSessions(mock(NodeActionExecutor.class)),
                 keyData);
         channel = new EmbeddedChannel(ctx.decoder, ctx.handler);
 

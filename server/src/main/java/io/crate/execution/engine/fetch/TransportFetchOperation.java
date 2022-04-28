@@ -30,27 +30,25 @@ import io.crate.breaker.BlockBasedRamAccounting;
 import io.crate.breaker.RamAccounting;
 import io.crate.common.annotations.VisibleForTesting;
 import io.crate.data.Bucket;
+import io.crate.execution.support.NodeActionExecutor;
 
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
-import java.util.function.BiConsumer;
 import java.util.function.Function;
 
 import static io.crate.breaker.BlockBasedRamAccounting.MAX_BLOCK_SIZE_IN_BYTES;
 
-import org.elasticsearch.action.ActionListener;
-
 public class TransportFetchOperation implements FetchOperation {
 
     private static final Function<NodeFetchResponse, IntObjectMap<? extends Bucket>> GET_FETCHED = NodeFetchResponse::fetched;
-    private final BiConsumer<NodeFetchRequestResponse, ActionListener<NodeFetchResponse>> fetchNodeAction;
+    private final NodeActionExecutor<NodeFetchRequestResponse, NodeFetchResponse> fetchNodeAction;
     private final Map<String, ? extends IntObjectMap<Streamer[]>> nodeIdToReaderIdToStreamers;
     private final UUID jobId;
     private final int fetchPhaseId;
     private final RamAccounting ramAccounting;
 
-    public TransportFetchOperation(BiConsumer<NodeFetchRequestResponse, ActionListener<NodeFetchResponse>> fetchNodeAction,
+    public TransportFetchOperation(NodeActionExecutor<NodeFetchRequestResponse, NodeFetchResponse> fetchNodeAction,
                                    Map<String, ? extends IntObjectMap<Streamer[]>> nodeIdToReaderIdToStreamers,
                                    UUID jobId,
                                    int fetchPhaseId,
@@ -67,7 +65,7 @@ public class TransportFetchOperation implements FetchOperation {
                                                                    IntObjectMap<IntArrayList> toFetch,
                                                                    boolean closeContext) {
         FutureActionListener<NodeFetchResponse, IntObjectMap<? extends Bucket>> listener = new FutureActionListener<>(GET_FETCHED);
-        fetchNodeAction.accept(
+        fetchNodeAction.execute(
             new NodeFetchRequestResponse(nodeId,
                                          jobId,
                                          fetchPhaseId,
