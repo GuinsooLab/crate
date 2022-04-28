@@ -173,8 +173,8 @@ public class JoinPlanBuilder {
             return new HashJoin(
                 lhsPlan,
                 rhsPlan,
-                joinCondition,
-                Set.of(rhs.relationName()));
+                joinCondition
+            );
         } else {
             return new NestedLoopJoin(
                 lhsPlan,

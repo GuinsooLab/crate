@@ -103,12 +103,10 @@ public class MoveConstantJoinConditionsBeneathNestedLoop implements Rule<NestedL
             var newLhs = getNewSource(queryForLhs, lhs);
             var newRhs = getNewSource(queryForRhs, rhs);
             var joinCondition = AndOperator.join(nonConstantConditions);
-            var references = RelationNameCollector.collect(joinCondition);
             return new HashJoin(
                 newLhs,
                 newRhs,
-                joinCondition,
-                references
+                joinCondition
             );
         }
     }
