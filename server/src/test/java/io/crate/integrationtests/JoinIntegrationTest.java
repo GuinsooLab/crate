@@ -29,6 +29,7 @@ import io.crate.statistics.Stats;
 import io.crate.statistics.TableStats;
 import io.crate.testing.TestingHelpers;
 import io.crate.testing.UseHashJoins;
+import io.crate.testing.UseJdbc;
 import io.crate.testing.UseRandomizedSchema;
 import org.elasticsearch.common.breaker.CircuitBreaker;
 import org.elasticsearch.index.IndexNotFoundException;
@@ -1325,9 +1326,40 @@ public class JoinIntegrationTest extends SQLIntegrationTestCase {
                 WHERE doc.t3.reference in
                 (select reference from doc.t3 where reference = 'bazinga' union select reference from doc.t3 where reference != 'foo');
             """;
-        
+
         execute(stmt);
         assertThat(printedTable(response.rows()), is("2| bazinga\n"));
+    }
+
+    @UseJdbc(0)
+    @Test
+    @UseHashJoins(1)
+    public void test_union_subselect_in_hashjoin__() {
+        execute("CREATE TABLE doc.t1 (id TEXT, name TEXT, subscription_id TEXT, PRIMARY KEY (id))");
+        execute("CREATE TABLE doc.t2 (kind TEXT, cluster_id TEXT, PRIMARY KEY (kind, cluster_id))");
+        execute("CREATE TABLE doc.t3 (id TEXT PRIMARY KEY, reference TEXT)");
+
+        execute("insert into doc.t1 values ('1', 'foo', '2')");
+        execute("insert into doc.t2 values ('bar', '1')");
+        execute("insert into doc.t3 values ('2', 'bazinga')");
+        execute("insert into doc.t3 values ('3', 'test')");
+
+        execute("refresh table doc.t1");
+        execute("refresh table doc.t2");
+        execute("refresh table doc.t3");
+
+        var stmt = """
+                select * from (select name from doc.t1 where name = 'foo' union select kind from doc.t2 where kind = 'bar') x
+                join
+                (select name from doc.t1 where name = 'foo' union select kind from doc.t2 where kind = 'bar') sub
+                on x.name = sub.name and x.name != 'bla';
+            """;
+
+        execute("EXPLAIN " + stmt);
+        System.out.println(printedTable(response.rows()));
+
+        execute(stmt);
+        System.out.println(printedTable(response.rows()));
     }
 
 }

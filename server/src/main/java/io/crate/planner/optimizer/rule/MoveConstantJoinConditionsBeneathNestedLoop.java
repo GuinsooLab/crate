@@ -26,8 +26,11 @@ import static io.crate.planner.optimizer.rule.FilterOnJoinsUtil.getNewSource;
 
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.List;
+import java.util.Locale;
 import java.util.Set;
 
+import io.crate.analyze.relations.AnalyzedRelation;
 import io.crate.analyze.relations.QuerySplitter;
 import io.crate.expression.operator.AndOperator;
 import io.crate.expression.symbol.Symbol;
@@ -99,11 +102,14 @@ public class MoveConstantJoinConditionsBeneathNestedLoop implements Rule<NestedL
             var queryForRhs = constantConditions.remove(rhs.getRelationNames());
             var newLhs = getNewSource(queryForLhs, lhs);
             var newRhs = getNewSource(queryForRhs, rhs);
+            var joinCondition = AndOperator.join(nonConstantConditions);
+            var references = RelationNameCollector.collect(joinCondition);
+            var concreteRelation = newRhs.baseTables().get(0);
             return new HashJoin(
                 newLhs,
                 newRhs,
-                AndOperator.join(nonConstantConditions),
-                newRhs.baseTables().get(0)
+                joinCondition,
+                concreteRelation
             );
         }
     }

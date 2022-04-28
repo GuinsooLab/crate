@@ -146,7 +146,7 @@ public class HashJoin implements LogicalPlan {
 
         SubQueryAndParamBinder paramBinder = new SubQueryAndParamBinder(params, subQueryResults);
         Tuple<List<Symbol>, List<Symbol>> hashSymbols =
-            extractHashJoinSymbolsFromJoinSymbolsAndSplitPerSide(tablesSwitched);
+            extractHashJoinSymbolsFromJoinSymbolsAndSplitPerSide(tablesSwitched, paramBinder);
 
         ResultDescription leftResultDesc = leftExecutionPlan.resultDescription();
         ResultDescription rightResultDesc = rightExecutionPlan.resultDescription();
@@ -301,8 +301,9 @@ public class HashJoin implements LogicalPlan {
         );
     }
 
-    private Tuple<List<Symbol>, List<Symbol>> extractHashJoinSymbolsFromJoinSymbolsAndSplitPerSide(boolean switchedTables) {
-        Map<RelationName, List<Symbol>> hashJoinSymbols = HashJoinConditionSymbolsExtractor.extract(joinCondition);
+    private Tuple<List<Symbol>, List<Symbol>> extractHashJoinSymbolsFromJoinSymbolsAndSplitPerSide(boolean switchedTables, SubQueryAndParamBinder s) {
+        var x= s.apply(joinCondition);
+        Map<RelationName, List<Symbol>> hashJoinSymbols = HashJoinConditionSymbolsExtractor.extract(x);
 
         // First extract the symbols that belong to the concrete relation
         List<Symbol> hashJoinSymbolsForConcreteRelation = hashJoinSymbols.remove(concreteRelation.relationName());

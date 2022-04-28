@@ -147,8 +147,8 @@ public class LogicalPlanner {
                 new MoveOrderBeneathRename(),
                 new DeduplicateOrder(),
                 new OptimizeCollectWhereClauseAccess(),
-                new RewriteGroupByKeysLimitToTopNDistinct(),
-                new MoveConstantJoinConditionsBeneathNestedLoop()
+                new RewriteGroupByKeysLimitToTopNDistinct()
+             ,   new MoveConstantJoinConditionsBeneathNestedLoop()
             )
         );
         this.fetchOptimizer = new Optimizer(
