@@ -30,18 +30,14 @@ import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
-import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
-import java.util.stream.Collectors;
 
 import javax.annotation.Nullable;
 
 import io.crate.analyze.OrderBy;
 import io.crate.analyze.relations.AbstractTableRelation;
-import io.crate.analyze.relations.AnalyzedRelation;
 import io.crate.common.collections.Lists2;
-import io.crate.common.collections.Tuple;
 import io.crate.data.Row;
 import io.crate.execution.dsl.phases.HashJoinPhase;
 import io.crate.execution.dsl.phases.MergePhase;
@@ -67,7 +63,7 @@ import io.crate.statistics.TableStats;
 public class HashJoin implements LogicalPlan {
 
     private final Symbol joinCondition;
-    private final AnalyzedRelation concreteRelation;
+    private final Set<RelationName> concreteRelations;
     private final List<Symbol> outputs;
     final LogicalPlan rhs;
     final LogicalPlan lhs;
@@ -75,11 +71,11 @@ public class HashJoin implements LogicalPlan {
     public HashJoin(LogicalPlan lhs,
                     LogicalPlan rhs,
                     Symbol joinCondition,
-                    AnalyzedRelation concreteRelation) {
+                    Set<RelationName> concreteRelations) {
         this.outputs = Lists2.concat(lhs.outputs(), rhs.outputs());
         this.lhs = lhs;
         this.rhs = rhs;
-        this.concreteRelation = concreteRelation;
+        this.concreteRelations = concreteRelations;
         this.joinCondition = joinCondition;
     }
 
@@ -99,8 +95,8 @@ public class HashJoin implements LogicalPlan {
         return rhs;
     }
 
-    public AnalyzedRelation concreteRelation() {
-        return concreteRelation;
+    public Set<RelationName> concreteRelations() {
+        return concreteRelations;
     }
 
     @Override
@@ -145,8 +141,8 @@ public class HashJoin implements LogicalPlan {
         }
 
         SubQueryAndParamBinder paramBinder = new SubQueryAndParamBinder(params, subQueryResults);
-        Tuple<List<Symbol>, List<Symbol>> hashSymbols =
-            extractHashJoinSymbolsFromJoinSymbolsAndSplitPerSide(tablesSwitched, paramBinder);
+        Map<RelationName, List<Symbol>> hashSymbols =
+            extractHashJoinSymbolsFromJoinSymbolsAndSplitPerSide(tablesSwitched);
 
         ResultDescription leftResultDesc = leftExecutionPlan.resultDescription();
         ResultDescription rightResultDesc = rightExecutionPlan.resultDescription();
@@ -156,6 +152,25 @@ public class HashJoin implements LogicalPlan {
         List<Symbol> rightOutputs = rightLogicalPlan.outputs();
         MergePhase leftMerge = null;
         MergePhase rightMerge = null;
+
+        var right = new ArrayList<Symbol>();
+        for (var baseTable : rightLogicalPlan.getRelationNames()) {
+            List<Symbol> c = hashSymbols.remove(baseTable);
+            if (c != null) {
+                right.addAll(c);
+            }
+        }
+
+        var left = new ArrayList<Symbol>();
+        for (List<Symbol> value : hashSymbols.values()) {
+            left.addAll(value);
+        }
+//        for (var baseTable : leftLogicalPlan.getRelationNames()) {
+//            List<Symbol> c = hashSymbols.get(baseTable);
+//            if (c != null) {
+//                left.addAll(c);
+//            }
+//        }
 
         // We can only run the join distributed if no remaining limit or offset must be applied on the source relations.
         // Because on distributed joins, every join is running on a slice (modulo) set of the data and so no limit/offset
@@ -182,8 +197,8 @@ public class HashJoin implements LogicalPlan {
         } else {
             if (isDistributed) {
                 // Run the join distributed by modulo distribution algorithm
-                leftOutputs = setModuloDistribution(Lists2.map(hashSymbols.v1(), paramBinder), leftLogicalPlan.outputs(), leftExecutionPlan);
-                rightOutputs = setModuloDistribution(Lists2.map(hashSymbols.v2(), paramBinder), rightLogicalPlan.outputs(), rightExecutionPlan);
+                leftOutputs = setModuloDistribution(Lists2.map(left, paramBinder), leftLogicalPlan.outputs(), leftExecutionPlan);
+                rightOutputs = setModuloDistribution(Lists2.map(right, paramBinder), rightLogicalPlan.outputs(), rightExecutionPlan);
             } else {
                 // Run the join non-distributed on the handler node
                 joinExecutionNodes = Collections.singletonList(plannerContext.handlerNode());
@@ -206,8 +221,8 @@ public class HashJoin implements LogicalPlan {
             rightOutputs.size(),
             joinExecutionNodes,
             InputColumns.create(paramBinder.apply(joinCondition), joinOutputs),
-            InputColumns.create(Lists2.map(hashSymbols.v1(), paramBinder), new InputColumns.SourceSymbols(leftOutputs)),
-            InputColumns.create(Lists2.map(hashSymbols.v2(), paramBinder), new InputColumns.SourceSymbols(rightOutputs)),
+            InputColumns.create(Lists2.map(left, paramBinder), new InputColumns.SourceSymbols(leftOutputs)),
+            InputColumns.create(Lists2.map(right, paramBinder), new InputColumns.SourceSymbols(rightOutputs)),
             Symbols.typeView(leftOutputs),
             leftLogicalPlan.estimatedRowSize(),
             leftLogicalPlan.numExpectedRows());
@@ -244,7 +259,7 @@ public class HashJoin implements LogicalPlan {
             sources.get(0),
             sources.get(1),
             joinCondition,
-            concreteRelation
+            concreteRelations
         );
     }
 
@@ -267,7 +282,7 @@ public class HashJoin implements LogicalPlan {
             newLhs,
             newRhs,
             joinCondition,
-            concreteRelation
+            concreteRelations
         );
     }
 
@@ -296,34 +311,38 @@ public class HashJoin implements LogicalPlan {
                 lhsFetchRewrite == null ? lhs : lhsFetchRewrite.newPlan(),
                 rhsFetchRewrite == null ? rhs : rhsFetchRewrite.newPlan(),
                 joinCondition,
-                concreteRelation
+                concreteRelations
             )
         );
     }
 
-    private Tuple<List<Symbol>, List<Symbol>> extractHashJoinSymbolsFromJoinSymbolsAndSplitPerSide(boolean switchedTables, SubQueryAndParamBinder s) {
-        var x= s.apply(joinCondition);
-        Map<RelationName, List<Symbol>> hashJoinSymbols = HashJoinConditionSymbolsExtractor.extract(x);
-
-        // First extract the symbols that belong to the concrete relation
-        List<Symbol> hashJoinSymbolsForConcreteRelation = hashJoinSymbols.remove(concreteRelation.relationName());
-        if (hashJoinSymbolsForConcreteRelation == null) {
-            throw new IllegalStateException(
-                String.format(Locale.ENGLISH,
-                          "Join Condition `%s` must only reference the concrete relation `%s` of the HashJoin",
-                          joinCondition,
-                          concreteRelation.relationName().name()));
-        }
-
-        // All leftover extracted symbols belong to the other relation which might be a
-        // "concrete" relation too but can already be a tree of relation.
-        List<Symbol> hashJoinSymbolsForJoinTree =
-            hashJoinSymbols.values().stream().flatMap(List::stream).collect(Collectors.toList());
-
-        if (switchedTables) {
-            return new Tuple<>(hashJoinSymbolsForConcreteRelation, hashJoinSymbolsForJoinTree);
-        }
-        return new Tuple<>(hashJoinSymbolsForJoinTree, hashJoinSymbolsForConcreteRelation);
+    private Map<RelationName, List<Symbol>> extractHashJoinSymbolsFromJoinSymbolsAndSplitPerSide(boolean switchedTables) {
+       return HashJoinConditionSymbolsExtractor.extract(joinCondition);
+//        // First extract the symbols that belong to the concrete relations
+//        List<Symbol> hashJoinSymbolsForConcreteRelation = null;
+//        for (var concreteRelation : concreteRelations) {
+//            hashJoinSymbolsForConcreteRelation = hashJoinSymbols.remove(concreteRelation);
+//            if (hashJoinSymbolsForConcreteRelation != null) {
+//                break;
+//            }
+//        }
+//        if (hashJoinSymbolsForConcreteRelation == null) {
+//            throw new IllegalStateException(
+//                String.format(Locale.ENGLISH,
+//                          "Join Condition `%s` must only reference the concrete relation `%s` of the HashJoin",
+//                          joinCondition,
+//                          concreteRelations));
+//        }
+//
+//        // All leftover extracted symbols belong to the other relation which might be a
+//        // "concrete" relation too but can already be a tree of relation.
+//        List<Symbol> hashJoinSymbolsForJoinTree =
+//            hashJoinSymbols.values().stream().flatMap(List::stream).collect(Collectors.toList());
+//
+//        if (switchedTables) {
+//            return new Tuple<>(hashJoinSymbolsForConcreteRelation, hashJoinSymbolsForJoinTree);
+//        }
+//        return new Tuple<>(hashJoinSymbolsForJoinTree, hashJoinSymbolsForConcreteRelation);
     }
 
     @Override

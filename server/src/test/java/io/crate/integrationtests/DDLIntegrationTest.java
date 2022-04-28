@@ -58,6 +58,7 @@ import io.crate.protocols.postgres.PGErrorStatus;
 import io.crate.testing.Asserts;
 import io.crate.testing.SQLErrorMatcher;
 import io.crate.testing.TestingHelpers;
+import io.crate.testing.UseJdbc;
 import io.crate.testing.UseRandomizedSchema;
 import io.netty.handler.codec.http.HttpResponseStatus;
 
@@ -435,6 +436,7 @@ public class DDLIntegrationTest extends SQLIntegrationTestCase {
                          4000));
     }
 
+    @UseJdbc(1)
     @Test
     public void testAlterTable() throws Exception {
         execute("create table test (col1 int) with (number_of_replicas='0-all')");

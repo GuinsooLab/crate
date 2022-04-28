@@ -174,7 +174,7 @@ public class JoinPlanBuilder {
                 lhsPlan,
                 rhsPlan,
                 joinCondition,
-                rhs);
+                Set.of(rhs.relationName()));
         } else {
             return new NestedLoopJoin(
                 lhsPlan,
