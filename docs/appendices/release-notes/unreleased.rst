@@ -56,6 +56,9 @@ Changes
 
 - Added ``decimal`` type as alias to ``numeric``
 
+- Moved the :ref:`scalar-quote_ident` function to `pg_catalog` for improved
+  compatibility with PostgreSQL. 
+
 Fixes
 =====
 
